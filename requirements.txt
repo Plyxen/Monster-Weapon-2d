@@ -1,0 +1,17 @@
+# Monster-Weapon-2D: Enhanced Roguelike Dungeon Explorer
+# Python Dependencies for Isaac-like Roguelike Game
+#
+# Installation: pip install -r requirements.txt
+#
+# Core Dependencies:
+# - pygame: Main game engine for graphics, input, and audio
+# - Minimum version 2.5.0 required for modern features and stability
+# - Tested with pygame 2.6.1 on Python 3.13.5
+
+pygame>=2.5.0
+
+# Optional Dependencies (for future expansion):
+# numpy>=1.21.0        # For advanced mathematical operations
+# pillow>=8.0.0        # For image processing and texture generation
+# pydub>=0.25.0        # For audio file processing
+# pygame-menu>=4.0.0   # For enhanced menu systems
