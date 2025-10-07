@@ -78,6 +78,9 @@ class Room:
         self.room_type = room_type
         self.room_index = room_index
         self.connected_to = None
+        self.doors = []  # List of door positions for this room
+        self.monsters_in_room = []  # List of monsters inside this room
+        self.doors_closed = True  # Whether doors are closed (enemies present)
     
     def collidepoint(self, x: int, y: int) -> bool:
         """Check if a point is inside this room."""
@@ -227,6 +230,14 @@ class Player:
                 return True
             else:
                 return False
+        
+        # Check room doors (players can always pass through)
+        if cell in ['R', 'O']:
+            # Players can always pass through room doors (closed or open)
+            self.x = new_x
+            self.y = new_y
+            self.visited_cells.add((new_x, new_y))
+            return True
         
         # Normal movement
         self.x = new_x
