@@ -116,10 +116,10 @@ class MonsterManager:
                 new_x = monster.x + dx
                 new_y = monster.y + dy
                 
-                # Check if move is valid
+                # Check if move is valid (monsters can't pass through doors)
                 if (0 <= new_y < len(maze) and 
                     0 <= new_x < len(maze[0]) and 
-                    maze[new_y][new_x] != '#'):
+                    maze[new_y][new_x] not in ['#', 'D', 'R', 'O']):
                     monster.x = new_x
                     monster.y = new_y
                 
