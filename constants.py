@@ -125,3 +125,7 @@ KEY_COLOR =      COLORS['CYAN']         # Keys for locked doors
 
 # Entity Colors  
 MONSTER_COLOR =  COLORS['RED']          # Enemy creatures
+
+# Door Colors
+DOOR_CLOSED_COLOR = COLORS['DARK_BROWN']  # Closed doors blocking monsters
+DOOR_OPEN_COLOR = COLORS['BROWN']         # Open doors after clearing room
