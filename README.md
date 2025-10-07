@@ -1,4 +1,4 @@
-# 🏰 Roguelike Dungeon - 🗝️ **Treasur- Walk into items to collect them (💰 treasure, 🧪 potions, ⚔️ weapons, 🛡️ shields) Hunting**: Find keys to unlock special rooms with valuable loot
+# 🏰 Roguelike Dungeon 🗝️ 
 - 🗺️ **Exploration**: Fog of war and minimap make discovery rewarding
 - 🎨 **Polished Graphics**: Isaac-style monsters and detailed item sprites
 
