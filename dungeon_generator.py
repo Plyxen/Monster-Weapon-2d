@@ -77,6 +77,9 @@ class DungeonGenerator:
         # Create locked doors
         self._create_locked_doors(dungeon)
         
+        # Create exit doors for rooms
+        self._create_room_exit_doors(dungeon)
+        
         return dungeon, self.rooms, self.treasure_rooms, self.key_rooms, self.locked_doors
     
     def _create_main_progression(self, dungeon: List[List[str]], room_count: int):
@@ -374,3 +377,49 @@ class DungeonGenerator:
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                     break
+    
+    def _create_room_exit_doors(self, dungeon: List[List[str]]):
+        """Create doors at room exits that open when all enemies are cleared."""
+        all_rooms = self.rooms + self.treasure_rooms + self.key_rooms
+        
+        for room in all_rooms:
+            # Find corridor connections adjacent to the room
+            possible_doors = []
+            
+            # Check all edges of the room for corridor connections  
+            # Look for openings where corridors connect to rooms
+            
+            # Top edge - look for openings
+            for x in range(room.left, room.right):
+                if (room.top - 1 >= 0 and 
+                    dungeon[room.top - 1][x] == ' '):
+                    possible_doors.append((x, room.top - 1))
+            
+            # Bottom edge  
+            for x in range(room.left, room.right):
+                if (room.bottom < self.height and
+                    dungeon[room.bottom][x] == ' '):
+                    possible_doors.append((x, room.bottom))
+            
+            # Left edge
+            for y in range(room.top, room.bottom):
+                if (room.left - 1 >= 0 and
+                    dungeon[y][room.left - 1] == ' '):
+                    possible_doors.append((room.left - 1, y))
+            
+            # Right edge
+            for y in range(room.top, room.bottom):
+                if (room.right < self.width and
+                    dungeon[y][room.right] == ' '):
+                    possible_doors.append((room.right, y))
+            
+            # Place doors at corridor connections (limit to 3 per room)
+            doors_placed = 0
+            for door_x, door_y in possible_doors:
+                if doors_placed >= 3:  # Maximum 3 doors per room
+                    break
+                    
+                if dungeon[door_y][door_x] == ' ':
+                    dungeon[door_y][door_x] = 'R'  # R = Room door (closes when enemies present)
+                    room.doors.append((door_x, door_y))
+                    doors_placed += 1
