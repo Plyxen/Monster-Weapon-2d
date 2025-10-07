@@ -20,6 +20,9 @@ import random
 import math
 from typing import Tuple, List, Optional
 from enum import Enum
+import pygame
+import random
+import math
 
 # Initialize Pygame
 pygame.init()
@@ -42,20 +45,9 @@ DEFAULT_MOVE_DELAY = 150    # Milliseconds between moves when holding key
 # Dungeon Generation Settings
 DEFAULT_MAZE_WIDTH = 45     # Dungeon width in grid cells
 DEFAULT_MAZE_HEIGHT = 29    # Dungeon height in grid cells
-MAIN_ROOM_COUNT_MIN = 15    # Minimum main progression rooms
-MAIN_ROOM_COUNT_MAX = 20    # Maximum main progression rooms
-TREASURE_ROOM_COUNT_MIN = 8 # Minimum treasure rooms
-TREASURE_ROOM_COUNT_MAX = 12# Maximum treasure rooms  
-KEY_ROOM_COUNT_MIN = 4      # Minimum key rooms
-KEY_ROOM_COUNT_MAX = 6      # Maximum key rooms
+# Isaac-style Layout Uses Dynamic Room Counts
 
-# Room Size Limits
-MAIN_ROOM_SIZE_MIN = 8      # Minimum main room dimension
-MAIN_ROOM_SIZE_MAX = 14     # Maximum main room dimension
-TREASURE_ROOM_SIZE_MIN = 6  # Minimum treasure room dimension
-TREASURE_ROOM_SIZE_MAX = 10 # Maximum treasure room dimension
-KEY_ROOM_SIZE_MIN = 5       # Minimum key room dimension
-KEY_ROOM_SIZE_MAX = 8       # Maximum key room dimension
+# Isaac-style Layout Uses Fixed Room Sizes (6x4)
 
 # Combat and Player Settings
 DEFAULT_PLAYER_HP = 100     # Starting player health
@@ -231,6 +223,11 @@ class Room:
         self.room_type = room_type
         self.room_index = room_index
         self.connected_to = None
+        
+        # Door system attributes
+        self.doors = []  # List of (x, y) door positions
+        self.monsters_in_room = []  # List of monsters currently in this room
+        self.doors_closed = False  # Whether doors are closed due to enemies
     
     def collidepoint(self, x: int, y: int) -> bool:
         """Check if a point is inside this room."""
@@ -503,6 +500,45 @@ class Player:
                 # Can't pass without a key
                 return False
         
+        # Check closed room doors (when monsters are present)
+        if cell == 'R':
+            # Advanced door logic: Can enter rooms with enemies, but can't exit until cleared
+            
+            # Find which room the player is currently in
+            current_room = None
+            if game and hasattr(game, 'rooms'):
+                for room in game.rooms:
+                    if room.collidepoint(self.x, self.y):
+                        current_room = room
+                        break
+            if not current_room and game and hasattr(game, 'treasure_rooms'):
+                for room in game.treasure_rooms:
+                    if room.collidepoint(self.x, self.y):
+                        current_room = room
+                        break
+            
+            # Find which room the destination is in
+            destination_room = None
+            if game and hasattr(game, 'rooms'):
+                for room in game.rooms:
+                    if room.collidepoint(new_x, new_y):
+                        destination_room = room
+                        break
+            if not destination_room and game and hasattr(game, 'treasure_rooms'):
+                for room in game.treasure_rooms:
+                    if room.collidepoint(new_x, new_y):
+                        destination_room = room
+                        break
+            
+            # If trying to exit a room with enemies, block movement
+            if current_room and hasattr(current_room, 'doors_closed') and current_room.doors_closed:
+                # Player is in a room with enemies and trying to leave - blocked!
+                return False
+            
+            # If entering a room (from corridor or different room), allow entry
+            # This lets players enter rooms to fight enemies
+            # Continue with normal movement...
+        
         # Normal movement
         self.x = new_x
         self.y = new_y
@@ -578,10 +614,12 @@ class EnhancedMazeGame:
     
     def __init__(self):
         """Initialize the game with default settings and generate initial dungeon."""
+        print("🔧 Initializing pygame display...")
         # Initialize Pygame display
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("Roguelike Dungeon Explorer")
         self.clock = pygame.time.Clock()
+        print("✅ Pygame display initialized!")
         
         # ---- UI Layout Configuration ----
         self.ui_width = DEFAULT_UI_WIDTH           # Right panel width for stats/minimap
@@ -590,7 +628,15 @@ class EnhancedMazeGame:
         # ---- Dungeon Dimensions ----  
         self.maze_width = DEFAULT_MAZE_WIDTH       # Dungeon width in grid cells
         self.maze_height = DEFAULT_MAZE_HEIGHT     # Dungeon height in grid cells
+        
+        # Initialize game lists before dungeon generation
+        self.items = []
+        self.monsters = []
+        self.locked_doors = []
+        
+        print("🏗️ Generating initial dungeon...")
         self.generate_new_maze()
+        print("✅ Dungeon generated!")
         
         # ---- Camera System ----
         self.cell_size = DEFAULT_CELL_SIZE         # Pixels per grid cell (large for detail)
@@ -636,13 +682,12 @@ class EnhancedMazeGame:
         # Initialize player
         self.player = Player(self.start_pos[0], self.start_pos[1])
         
-        # Generate items and monsters
-        self.items = []
-        self.monsters = []
+        # Items and monsters already initialized above
         
-        # Initialize locked doors list
-        if not hasattr(self, 'locked_doors'):
-            self.locked_doors = []
+        # Clear game lists for fresh generation
+        self.items.clear()
+        self.monsters.clear()
+        self.locked_doors.clear()
             
         self.generate_items_and_monsters()
         
@@ -656,17 +701,14 @@ class EnhancedMazeGame:
     
     def generate_roguelike_dungeon(self):
         """
-        Generate a comprehensive roguelike dungeon with structured progression.
+        Generate a Binding of Isaac style dungeon with grid-based room layout.
         
-        Creates a dungeon with forced progression through main rooms while
-        providing optional treasure rooms for exploration and rewards.
-        
-        Architecture:
-        - Main rooms: 15-20 rooms forming required progression path
-        - Treasure rooms: 8-12 optional rooms with valuable loot
-        - Key rooms: 4-6 rooms containing keys for treasure doors
-        - Corridors: L-shaped connections between rooms
-        - Locked doors: Block access to treasure rooms until keys found
+        Creates a dungeon using Isaac's signature design:
+        - Grid-based layout: Rooms arranged in a rectangular grid (like a house floor plan)
+        - Room types: Normal, Treasure (requires key), Boss, Shop, Secret
+        - Cross-shaped connections: Rooms connect through their cardinal directions
+        - Rectangular rooms: All rooms are rectangular with consistent size
+        - Central progression: Start in center, expand outward
         
         Returns:
             List[List[str]]: 2D grid of dungeon cells ('#'=wall, ' '=floor, 'S'=start, 'E'=end, 'D'=door)
@@ -674,479 +716,321 @@ class EnhancedMazeGame:
         # Initialize dungeon filled with walls
         dungeon = [['#' for _ in range(self.maze_width)] for _ in range(self.maze_height)]
         
-        # Generate main progression rooms (linear path)
+        # Isaac-style grid layout parameters - optimized for 45x29 dungeon
+        room_width = 5   # Each room is 5x3 cells (smaller to fit better)
+        room_height = 3
+        corridor_length = 1  # 1-cell corridors between rooms (more compact)
+        
+        # Calculate maximum grid size that fits in the dungeon
+        max_grid_width = (self.maze_width - 4) // (room_width + corridor_length)
+        max_grid_height = (self.maze_height - 4) // (room_height + corridor_length)
+        
+        # Use optimal grid size for the available space
+        grid_width = min(6, max_grid_width)   # 6x5 grid should fit in 45x29
+        grid_height = min(5, max_grid_height)
+        
+        # Ensure minimum grid size
+        grid_width = max(3, grid_width)
+        grid_height = max(3, grid_height)
+        
+        # Calculate actual space needed and center the layout
+        total_width = grid_width * room_width + (grid_width - 1) * corridor_length
+        total_height = grid_height * room_height + (grid_height - 1) * corridor_length
+        
+        start_x = max(2, (self.maze_width - total_width) // 2)
+        start_y = max(2, (self.maze_height - total_height) // 2)
+        
+
+        
+        # Create Isaac-style room grid
+        room_grid = [[None for _ in range(grid_width)] for _ in range(grid_height)]
         main_rooms = []
         treasure_rooms = []
-        
-        # Create main progression path
-        main_room_count = random.randint(MAIN_ROOM_COUNT_MIN, MAIN_ROOM_COUNT_MAX)
-        self.create_main_progression(dungeon, main_rooms, main_room_count)
-        
-        # Add treasure rooms that branch off from main path  
-        treasure_room_count = random.randint(TREASURE_ROOM_COUNT_MIN, TREASURE_ROOM_COUNT_MAX)
-        self.create_treasure_rooms(dungeon, main_rooms, treasure_rooms, treasure_room_count)
-        
-        # Add key rooms - special rooms with keys
         key_rooms = []
-        key_room_count = random.randint(KEY_ROOM_COUNT_MIN, KEY_ROOM_COUNT_MAX)
-        self.create_key_rooms(dungeon, main_rooms, key_rooms, key_room_count)
         
-        # Connect main rooms in sequence (forced progression)
-        self.connect_main_rooms(dungeon, main_rooms)
-        
-        # Connect treasure rooms to main path with locked doors
-        self.connect_treasure_rooms(dungeon, main_rooms, treasure_rooms)
-        
-        # Connect key rooms to main path
-        self.connect_key_rooms(dungeon, main_rooms, key_rooms)
-        
-        # Place start and end positions
-        if main_rooms:
-            start_room = main_rooms[0]
-            end_room = main_rooms[-1]
-            
-            # Place start in first room
-            start_x = start_room.centerx
-            start_y = start_room.centery
-            dungeon[start_y][start_x] = 'S'
-            
-            # Place end in last room
-            end_x = end_room.centerx
-            end_y = end_room.centery
-            dungeon[end_y][end_x] = 'E'
+        # Generate Isaac-style layout
+        self.create_isaac_layout(dungeon, room_grid, main_rooms, treasure_rooms, key_rooms, 
+            start_x, start_y, grid_width, grid_height, room_width, room_height, corridor_length)
         
         # Store rooms for later use
         self.rooms = main_rooms
         self.treasure_rooms = treasure_rooms
         self.key_rooms = key_rooms
-        self.locked_doors = []  # Will store door positions that need keys
+        self.locked_doors = []
         
-        # Create locked doors for treasure rooms
-        self.create_locked_doors(dungeon, treasure_rooms)
+        # Create doors between rooms (Isaac style)
+        self.create_isaac_doors(dungeon, room_grid, grid_width, grid_height, 
+            start_x, start_y, room_width, room_height, corridor_length)
+        
+        # Initialize room door state system
+        self._update_room_doors()
         
         return dungeon
     
-    def create_main_progression(self, dungeon, main_rooms, room_count):
+    def create_isaac_layout(self, dungeon, room_grid, main_rooms, treasure_rooms, key_rooms,
+        start_x, start_y, grid_width, grid_height, room_width, room_height, corridor_length):
         """
-        Create the main progression path that players must follow to win.
+        Create Binding of Isaac style room layout with grid-based positioning.
         
-        Places rooms along a diagonal progression from start to end, with
-        some randomness to create interesting layouts. These rooms form
-        the critical path - players must visit all of them to reach the exit.
-        
-        Args:
-            dungeon: 2D grid to modify with room placement
-            main_rooms: List to populate with created Room objects
-            room_count: Number of main rooms to create (15-20 recommended)
+        Isaac Layout Rules:
+        - Start room in center of grid
+        - 8-15 normal rooms connected in a branching pattern
+        - 2-4 treasure rooms at dead ends (require keys)
+        - 1-2 shop rooms (key rooms in our case)
+        - 1 boss room at a far corner
+        - Rooms connect only through cardinal directions (N/S/E/W)
         """
-        min_room_size = MAIN_ROOM_SIZE_MIN
-        max_room_size = MAIN_ROOM_SIZE_MAX
+        center_x = grid_width // 2
+        center_y = grid_height // 2
         
-        # Create rooms along a rough path from start to end
-        for i in range(room_count):
-            attempts = 0
-            max_attempts = 50
-            
-            while attempts < max_attempts:
-                attempts += 1
-                
-                # Position rooms roughly along progression path
-                progress = i / (room_count - 1) if room_count > 1 else 0
-                
-                # Base position along diagonal progression
-                base_x = int(progress * (self.maze_width - 10)) + 5
-                base_y = int(progress * (self.maze_height - 10)) + 5
-                
-                # Add some randomness
-                room_width = random.randint(min_room_size, max_room_size)
-                room_height = random.randint(min_room_size, max_room_size)
-                room_x = base_x + random.randint(-3, 3)
-                room_y = base_y + random.randint(-3, 3)
-                
-                # Ensure room is within bounds
-                room_x = max(1, min(room_x, self.maze_width - room_width - 1))
-                room_y = max(1, min(room_y, self.maze_height - room_height - 1))
-                
-                # Check if room overlaps with existing rooms
-                new_room = Room(room_x, room_y, room_width, room_height, 'main', i)
-                overlaps = any(new_room.inflate(4, 4).colliderect(room.inflate(4, 4)) for room in main_rooms)
-                
-                if not overlaps:
-                    # Create the room (force rectangular for first room - starting room)
-                    self.create_room(dungeon, room_x, room_y, room_width, room_height, room_index=i)
-                    main_rooms.append(new_room)
-                    break
-    
-    def create_treasure_rooms(self, dungeon, main_rooms, treasure_rooms, room_count):
-        """Create treasure rooms that branch off from main rooms"""
-        min_room_size = TREASURE_ROOM_SIZE_MIN
-        max_room_size = TREASURE_ROOM_SIZE_MAX
+        # Create starting room at center
+        room_x = start_x + center_x * (room_width + corridor_length)
+        room_y = start_y + center_y * (room_height + corridor_length)
         
-        for _ in range(room_count):
-            attempts = 0
-            max_attempts = 50
+        start_room = Room(room_x, room_y, room_width, room_height, 'main', 0)
+        self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+        room_grid[center_y][center_x] = start_room
+        main_rooms.append(start_room)
+        
+        # Place start marker
+        dungeon[start_room.centery][start_room.centerx] = 'S'
+        
+        # Generate room layout using Isaac's branching algorithm
+        rooms_to_generate = random.randint(8, 15)  # Total normal rooms including start
+        available_positions = []
+        
+        # Add adjacent positions to starting room
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:  # N, S, E, W
+            new_gx, new_gy = center_x + dx, center_y + dy
+            if 0 <= new_gx < grid_width and 0 <= new_gy < grid_height:
+                available_positions.append((new_gx, new_gy))
+        
+        # Generate main rooms by branching outward
+        for i in range(1, rooms_to_generate):
+            if not available_positions:
+                break
+                
+            # Pick a random available position
+            grid_x, grid_y = random.choice(available_positions)
+            available_positions.remove((grid_x, grid_y))
             
-            while attempts < max_attempts:
-                attempts += 1
-                
-                # Pick a random main room to branch from (not start or end)
-                if len(main_rooms) < 3:
-                    break
+            # Create room at this grid position
+            room_x = start_x + grid_x * (room_width + corridor_length)
+            room_y = start_y + grid_y * (room_height + corridor_length)
+            
+            new_room = Room(room_x, room_y, room_width, room_height, 'main', i)
+            self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+            room_grid[grid_y][grid_x] = new_room
+            main_rooms.append(new_room)
+            
+            # Add new adjacent positions for future rooms
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                new_gx, new_gy = grid_x + dx, grid_y + dy
+                if (0 <= new_gx < grid_width and 0 <= new_gy < grid_height and 
+                    room_grid[new_gy][new_gx] is None and 
+                    (new_gx, new_gy) not in available_positions):
+                    available_positions.append((new_gx, new_gy))
+        
+        # Place boss room (end) at the furthest corner from start
+        boss_positions = [
+            (0, 0), (grid_width-1, 0), (0, grid_height-1), (grid_width-1, grid_height-1)
+        ]
+        # Find the corner furthest from center that's available
+        best_boss_pos = None
+        max_distance = 0
+        for gx, gy in boss_positions:
+            if room_grid[gy][gx] is None:
+                distance = abs(gx - center_x) + abs(gy - center_y)
+                if distance > max_distance:
+                    max_distance = distance
+                    best_boss_pos = (gx, gy)
+        
+        if best_boss_pos:
+            grid_x, grid_y = best_boss_pos
+            room_x = start_x + grid_x * (room_width + corridor_length)
+            room_y = start_y + grid_y * (room_height + corridor_length)
+            
+            boss_room = Room(room_x, room_y, room_width, room_height, 'boss', 999)
+            self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+            room_grid[grid_y][grid_x] = boss_room
+            main_rooms.append(boss_room)
+            
+            # Place end marker
+            dungeon[boss_room.centery][boss_room.centerx] = 'E'
+        
+        # Create treasure rooms at dead ends
+        dead_ends = []
+        for gy in range(grid_height):
+            for gx in range(grid_width):
+                if room_grid[gy][gx] is not None:
+                    # Count adjacent rooms
+                    adjacent_count = 0
+                    for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                        adj_x, adj_y = gx + dx, gy + dy
+                        if (0 <= adj_x < grid_width and 0 <= adj_y < grid_height and 
+                            room_grid[adj_y][adj_x] is not None):
+                            adjacent_count += 1
                     
-                main_room = random.choice(main_rooms[1:-1])  # Skip first and last room
-                
-                # Position treasure room near the main room
-                room_width = random.randint(min_room_size, max_room_size)
-                room_height = random.randint(min_room_size, max_room_size)
-                
-                # Try different directions from main room
-                directions = [
-                    (main_room.right + 3, main_room.centery - room_height // 2),  # Right
-                    (main_room.left - room_width - 3, main_room.centery - room_height // 2),  # Left
-                    (main_room.centerx - room_width // 2, main_room.bottom + 3),  # Below
-                    (main_room.centerx - room_width // 2, main_room.top - room_height - 3),  # Above
-                ]
-                
-                for room_x, room_y in directions:
-                    # Ensure room is within bounds
-                    if (room_x < 1 or room_y < 1 or 
-                        room_x + room_width >= self.maze_width - 1 or 
-                        room_y + room_height >= self.maze_height - 1):
-                        continue
-                    
-                    # Check overlaps with all existing rooms
-                    new_room = Room(room_x, room_y, room_width, room_height, 'treasure', 0)
-                    overlaps = any(new_room.inflate(4, 4).colliderect(room.inflate(4, 4)) 
-                                 for room in main_rooms + treasure_rooms)
-                    
-                    if not overlaps:
-                        # Create the treasure room
-                        self.create_room(dungeon, room_x, room_y, room_width, room_height)
-                        new_room.connected_to = main_room
-                        treasure_rooms.append(new_room)
+                    if adjacent_count == 1:  # Dead end
+                        dead_ends.append((gx, gy))
+        
+        # Convert some dead ends to treasure rooms
+        treasure_count = min(random.randint(2, 4), len(dead_ends))
+        for i in range(treasure_count):
+            if dead_ends:
+                grid_x, grid_y = dead_ends.pop(random.randint(0, len(dead_ends)-1))
+                # Find adjacent empty position for treasure room
+                for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                    new_gx, new_gy = grid_x + dx, grid_y + dy
+                    if (0 <= new_gx < grid_width and 0 <= new_gy < grid_height and 
+                        room_grid[new_gy][new_gx] is None):
+                        
+                        room_x = start_x + new_gx * (room_width + corridor_length)
+                        room_y = start_y + new_gy * (room_height + corridor_length)
+                        
+                        treasure_room = Room(room_x, room_y, room_width, room_height, 'treasure', i)
+                        self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+                        room_grid[new_gy][new_gx] = treasure_room
+                        treasure_rooms.append(treasure_room)
                         break
-                
-                if treasure_rooms and treasure_rooms[-1].room_type == 'treasure':
-                    break
-    
-    def create_key_rooms(self, dungeon, main_rooms, key_rooms, room_count):
-        """Create key rooms that branch off from main rooms"""
-        min_room_size = KEY_ROOM_SIZE_MIN
-        max_room_size = KEY_ROOM_SIZE_MAX
         
-        for _ in range(room_count):
-            attempts = 0
-            max_attempts = 50
-            
-            while attempts < max_attempts:
-                attempts += 1
+        # Create shop rooms (key rooms) 
+        shop_count = random.randint(1, 2)
+        for i in range(shop_count):
+            if available_positions:
+                grid_x, grid_y = available_positions.pop(0)
+                room_x = start_x + grid_x * (room_width + corridor_length)
+                room_y = start_y + grid_y * (room_height + corridor_length)
                 
-                # Pick a random main room to branch from (avoid first and last few)
-                if len(main_rooms) < 5:
-                    break
-                    
-                main_room = random.choice(main_rooms[2:-2])  # Skip first 2 and last 2 rooms
-                
-                # Position key room near the main room
-                room_width = random.randint(min_room_size, max_room_size)
-                room_height = random.randint(min_room_size, max_room_size)
-                
-                # Try different directions from main room
-                directions = [
-                    (main_room.right + 2, main_room.centery - room_height // 2),  # Right
-                    (main_room.left - room_width - 2, main_room.centery - room_height // 2),  # Left
-                    (main_room.centerx - room_width // 2, main_room.bottom + 2),  # Below
-                    (main_room.centerx - room_width // 2, main_room.top - room_height - 2),  # Above
-                ]
-                
-                for room_x, room_y in directions:
-                    # Ensure room is within bounds
-                    if (room_x < 1 or room_y < 1 or 
-                        room_x + room_width >= self.maze_width - 1 or 
-                        room_y + room_height >= self.maze_height - 1):
-                        continue
-                    
-                    # Check overlaps with all existing rooms
-                    new_room = Room(room_x, room_y, room_width, room_height, 'key', 0)
-                    overlaps = any(new_room.inflate(3, 3).colliderect(room.inflate(3, 3)) 
-                                 for room in main_rooms + key_rooms)
-                    
-                    if not overlaps:
-                        # Create the key room
-                        self.create_room(dungeon, room_x, room_y, room_width, room_height)
-                        new_room.connected_to = main_room
-                        key_rooms.append(new_room)
-                        break
-                
-                if key_rooms and key_rooms[-1].room_type == 'key':
-                    break
-    
-    def connect_main_rooms(self, dungeon, main_rooms):
-        """Connect main rooms in sequence for forced progression"""
-        for i in range(len(main_rooms) - 1):
-            current_room = main_rooms[i]
-            next_room = main_rooms[i + 1]
-            self.create_corridor(dungeon, current_room, next_room)
-    
-    def connect_treasure_rooms(self, dungeon, main_rooms, treasure_rooms):
-        """Connect treasure rooms to main path"""
-        for treasure_room in treasure_rooms:
-            if treasure_room.connected_to:
-                main_room = treasure_room.connected_to
-                self.create_corridor(dungeon, main_room, treasure_room)
-    
-    def create_locked_doors(self, dungeon, treasure_rooms):
-        """Create locked doors for treasure rooms"""
-        for treasure_room in treasure_rooms:
-            main_room = treasure_room.connected_to
-            if not main_room:
-                continue
-                
-            # Find the corridor connection point and place a door
-            x1, y1 = main_room.centerx, main_room.centery
-            x2, y2 = treasure_room.centerx, treasure_room.centery
-            
-            # Place door at the entrance to the treasure room
-            # Try multiple positions near the treasure room entrance
-            door_positions = []
-            
-            if abs(x2 - x1) > abs(y2 - y1):
-                # Horizontal approach - door at treasure room entrance
-                entrance_x = treasure_room.left if x1 < x2 else treasure_room.right - 1
-                for dy in range(-1, 2):
-                    door_y = treasure_room.centery + dy
-                    if (treasure_room.top <= door_y < treasure_room.bottom):
-                        door_positions.append((entrance_x, door_y))
-            else:
-                # Vertical approach - door at treasure room entrance  
-                entrance_y = treasure_room.top if y1 < y2 else treasure_room.bottom - 1
-                for dx in range(-1, 2):
-                    door_x = treasure_room.centerx + dx
-                    if (treasure_room.left <= door_x < treasure_room.right):
-                        door_positions.append((door_x, entrance_y))
-            
-            # Place door at the best position
-            for door_x, door_y in door_positions:
-                if (1 <= door_x < self.maze_width - 1 and 1 <= door_y < self.maze_height - 1 and
-                    dungeon[door_y][door_x] == ' '):
-                    dungeon[door_y][door_x] = 'D'  # D for Door
-                    self.locked_doors.append((door_x, door_y))
-                    break
-    
-    def connect_key_rooms(self, dungeon, main_rooms, key_rooms):
-        """Connect key rooms directly to main rooms (no locked doors needed)"""
-        for key_room in key_rooms:
-            if key_room.connected_to:
-                main_room = key_room.connected_to
-                
-                # Find path from main room to key room
-                start_x = main_room.centerx
-                start_y = main_room.centery
-                end_x = key_room.centerx
-                end_y = key_room.centery
-                
-                # Create simple L-shaped corridor
-                current_x, current_y = start_x, start_y
-                
-                # Move horizontally first
-                while current_x != end_x:
-                    if current_x < end_x:
-                        current_x += 1
-                    else:
-                        current_x -= 1
-                    
-                    if (1 <= current_x < self.maze_width - 1 and 
-                        1 <= current_y < self.maze_height - 1):
-                        if dungeon[current_y][current_x] == '#':
-                            dungeon[current_y][current_x] = ' '
-                
-                # Move vertically
-                while current_y != end_y:
-                    if current_y < end_y:
-                        current_y += 1
-                    else:
-                        current_y -= 1
-                    
-                    if (1 <= current_x < self.maze_width - 1 and 
-                        1 <= current_y < self.maze_height - 1):
-                        if dungeon[current_y][current_x] == '#':
-                            dungeon[current_y][current_x] = ' '
-    
-    def create_room(self, dungeon, x, y, width, height, room_index=None):
-        """
-        Create a room with randomly selected Isaac-style architecture.
-        
-        Implements 7 different room layouts for visual variety:
-        - Rectangular: Standard rooms with optional pillar decorations
-        - Circular: Round chambers using distance calculations
-        - Cross: Plus-shaped rooms with perpendicular corridors
-        - L-Shape: Angled rooms for interesting navigation
-        - Diamond: Rhombus-shaped rooms using Manhattan distance
-        - Octagon: Eight-sided rooms approximating circles
-        - Donut: Circular rooms with hollow centers
-        
-        Args:
-            dungeon: 2D grid to modify
-            x: Left edge coordinate
-            y: Top edge coordinate  
-            width: Room width in cells
-            height: Room height in cells
-            room_index: Index of the room (0 = starting room, forced rectangular)
-        """
-        # Force rectangular (brick) shape for the starting room
-        if room_index == 0:
-            room_type = 'rectangular'
-        else:
-            room_types = ['rectangular', 'circular', 'cross', 'l_shape', 'diamond', 'octagon', 'donut']
-            room_type = random.choice(room_types)
-        
-        if room_type == 'rectangular':
-            # Standard rectangular room with optional pillars
-            for dy in range(height):
-                for dx in range(width):
-                    dungeon[y + dy][x + dx] = ' '
-            
-            # Add pillars in larger rooms
-            if width >= 10 and height >= 10 and random.random() < 0.4:
-                pillar_positions = [
-                    (x + 2, y + 2), (x + width - 3, y + 2),
-                    (x + 2, y + height - 3), (x + width - 3, y + height - 3)
-                ]
-                for px, py in pillar_positions:
-                    if 0 <= px < self.maze_width and 0 <= py < self.maze_height:
-                        dungeon[py][px] = '#'
-        
-        elif room_type == 'circular':
-            # Circular room
-            center_x = x + width // 2
-            center_y = y + height // 2
-            radius = min(width, height) // 2
-            
-            for dy in range(height):
-                for dx in range(width):
-                    dist = math.sqrt((x + dx - center_x) ** 2 + (y + dy - center_y) ** 2)
-                    if dist <= radius:
-                        dungeon[y + dy][x + dx] = ' '
-        
-        elif room_type == 'cross':
-            # Cross-shaped room (Isaac style)
-            mid_x = width // 2
-            mid_y = height // 2
-            cross_width = max(2, width // 3)
-            cross_height = max(2, height // 3)
-            
-            # Horizontal bar
+                key_room = Room(room_x, room_y, room_width, room_height, 'key', i)
+                self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+                room_grid[grid_y][grid_x] = key_room
+                key_rooms.append(key_room)
+
+    def create_isaac_room(self, dungeon, x, y, width, height):
+        """Create a simple rectangular room (Isaac style) with bounds checking."""
+        for dy in range(height):
             for dx in range(width):
-                for dy in range(mid_y - cross_height//2, mid_y + cross_height//2 + 1):
-                    if 0 <= dy < height:
-                        dungeon[y + dy][x + dx] = ' '
-            
-            # Vertical bar
-            for dy in range(height):
-                for dx in range(mid_x - cross_width//2, mid_x + cross_width//2 + 1):
-                    if 0 <= dx < width:
-                        dungeon[y + dy][x + dx] = ' '
+                room_x = x + dx
+                room_y = y + dy
+                # Bounds checking to prevent index errors
+                if (0 <= room_x < len(dungeon[0]) and 0 <= room_y < len(dungeon)):
+                    dungeon[room_y][room_x] = ' '
+
+    def create_isaac_doors(self, dungeon, room_grid, grid_width, grid_height, 
+        start_x, start_y, room_width, room_height, corridor_length):
+        """
+        Create Isaac-style connections between adjacent rooms.
         
-        elif room_type == 'l_shape':
-            # L-shaped room
-            # Horizontal part
-            h_height = height // 2 + 1
-            for dy in range(h_height):
-                for dx in range(width):
-                    dungeon[y + dy][x + dx] = ' '
+        Isaac doors are placed at the center of room walls and connect
+        directly to adjacent rooms through short corridors.
+        """
+        for gy in range(grid_height):
+            for gx in range(grid_width):
+                current_room = room_grid[gy][gx]
+                if current_room is None:
+                    continue
+                
+                # Check each direction for adjacent rooms
+                directions = [
+                    (0, -1, 'N'),  # North
+                    (0, 1, 'S'),   # South  
+                    (1, 0, 'E'),   # East
+                    (-1, 0, 'W')   # West
+                ]
+                
+                for dx, dy, direction in directions:
+                    adj_gx, adj_gy = gx + dx, gy + dy
+                    
+                    # Check if adjacent position has a room
+                    if (0 <= adj_gx < grid_width and 0 <= adj_gy < grid_height and 
+                        room_grid[adj_gy][adj_gx] is not None):
+                        
+                        adjacent_room = room_grid[adj_gy][adj_gx]
+                        
+                        # Create door and corridor between rooms
+                        self.create_isaac_connection(dungeon, current_room, adjacent_room, direction,
+                            start_x, start_y, room_width, room_height, corridor_length)
+
+    def create_isaac_connection(self, dungeon, room1, room2, direction, 
+        start_x, start_y, room_width, room_height, corridor_length):
+        """Create a door and corridor connection between two adjacent rooms."""
+        if direction == 'N':  # North - connect top of room1 to bottom of room2
+            door_x = room1.centerx
+            door_y = room1.top - 1
+            corridor_y = room1.top - corridor_length
             
-            # Vertical part
-            v_width = width // 2 + 1
-            for dy in range(height):
-                for dx in range(v_width):
-                    dungeon[y + dy][x + dx] = ' '
-        
-        elif room_type == 'diamond':
-            # Diamond-shaped room
-            center_x = x + width // 2
-            center_y = y + height // 2
+            # Create corridor
+            for cy in range(corridor_y, room1.top):
+                if 0 <= cy < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                    dungeon[cy][door_x] = ' '
             
-            for dy in range(height):
-                for dx in range(width):
-                    # Manhattan distance creates diamond shape
-                    dist = abs((x + dx) - center_x) + abs((y + dy) - center_y)
-                    if dist <= min(width, height) // 2:
-                        dungeon[y + dy][x + dx] = ' '
-        
-        elif room_type == 'octagon':
-            # Octagonal room
-            center_x = x + width // 2
-            center_y = y + height // 2
+            # Create doors with bounds checking
+            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                if room1.room_type == 'treasure':
+                    dungeon[door_y][door_x] = 'D'  # Locked door
+                    self.locked_doors.append((door_x, door_y))
+                else:
+                    dungeon[door_y][door_x] = 'R'  # Room door
+                    room1.doors.append((door_x, door_y))
+                
+        elif direction == 'S':  # South
+            door_x = room1.centerx
+            door_y = room1.bottom
+            corridor_y = room1.bottom + corridor_length
             
-            for dy in range(height):
-                for dx in range(width):
-                    px, py = x + dx - center_x, y + dy - center_y
-                    # Octagon approximation
-                    if abs(px) + abs(py) <= min(width, height) // 2 and \
-                       max(abs(px), abs(py)) <= min(width, height) // 2:
-                        dungeon[y + dy][x + dx] = ' '
-        
-        elif room_type == 'donut':
-            # Donut-shaped room (circular with hole in center)
-            center_x = x + width // 2
-            center_y = y + height // 2
-            outer_radius = min(width, height) // 2
-            inner_radius = max(1, outer_radius // 3)
+            for cy in range(room1.bottom + 1, corridor_y + 1):
+                if 0 <= cy < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                    dungeon[cy][door_x] = ' '
             
-            for dy in range(height):
-                for dx in range(width):
-                    dist = math.sqrt((x + dx - center_x) ** 2 + (y + dy - center_y) ** 2)
-                    if inner_radius <= dist <= outer_radius:
-                        dungeon[y + dy][x + dx] = ' '
+            # Create doors with bounds checking  
+            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                if room2.room_type == 'treasure':
+                    dungeon[door_y][door_x] = 'D'
+                    self.locked_doors.append((door_x, door_y))
+                else:
+                    dungeon[door_y][door_x] = 'R'
+                    room1.doors.append((door_x, door_y))
+                
+        elif direction == 'E':  # East
+            door_x = room1.right
+            door_y = room1.centery
+            corridor_x = room1.right + corridor_length
+            
+            for cx in range(room1.right + 1, corridor_x + 1):
+                if 0 <= door_y < len(dungeon) and 0 <= cx < len(dungeon[0]):
+                    dungeon[door_y][cx] = ' '
+            
+            # Create doors with bounds checking
+            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                if room2.room_type == 'treasure':
+                    dungeon[door_y][door_x] = 'D'
+                    self.locked_doors.append((door_x, door_y))
+                else:
+                    dungeon[door_y][door_x] = 'R'
+                    room1.doors.append((door_x, door_y))
+                
+        elif direction == 'W':  # West
+            door_x = room1.left - 1
+            door_y = room1.centery
+            corridor_x = room1.left - corridor_length
+            
+            for cx in range(corridor_x, room1.left):
+                if 0 <= door_y < len(dungeon) and 0 <= cx < len(dungeon[0]):
+                    dungeon[door_y][cx] = ' '
+            
+            # Create doors with bounds checking
+            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+                if room2.room_type == 'treasure':
+                    dungeon[door_y][door_x] = 'D'
+                    self.locked_doors.append((door_x, door_y))
+                else:
+                    dungeon[door_y][door_x] = 'R'
+                    room1.doors.append((door_x, door_y))
+
+
     
-    def connect_rooms(self, dungeon, rooms):
-        """Connect rooms with corridors"""
-        # Connect each room to the next one
-        for i in range(len(rooms) - 1):
-            room1 = rooms[i]
-            room2 = rooms[i + 1]
-            self.create_corridor(dungeon, room1, room2)
-        
-        # Add some additional connections for more interesting layout
-        for _ in range(len(rooms) // 3):
-            room1 = random.choice(rooms)
-            room2 = random.choice(rooms)
-            if room1 != room2:
-                self.create_corridor(dungeon, room1, room2)
-    
-    def create_corridor(self, dungeon, room1, room2):
-        """Create a corridor between two rooms"""
-        x1, y1 = room1.centerx, room1.centery
-        x2, y2 = room2.centerx, room2.centery
-        
-        # Create L-shaped corridor with better pathfinding
-        # Always go horizontal first for treasure rooms to ensure door placement works
-        if room2.room_type == 'treasure':
-            # Horizontal then vertical for treasure rooms
-            for x in range(min(x1, x2), max(x1, x2) + 1):
-                if 0 < x < self.maze_width - 1 and 0 < y1 < self.maze_height - 1:
-                    dungeon[y1][x] = ' '
-            for y in range(min(y1, y2), max(y1, y2) + 1):
-                if 0 < x2 < self.maze_width - 1 and 0 < y < self.maze_height - 1:
-                    dungeon[y][x2] = ' '
-        else:
-            # Create L-shaped corridor
-            if random.randint(0, 1):
-                # Horizontal then vertical
-                for x in range(min(x1, x2), max(x1, x2) + 1):
-                    if 0 < x < self.maze_width - 1 and 0 < y1 < self.maze_height - 1:
-                        dungeon[y1][x] = ' '
-                for y in range(min(y1, y2), max(y1, y2) + 1):
-                    if 0 < x2 < self.maze_width - 1 and 0 < y < self.maze_height - 1:
-                        dungeon[y][x2] = ' '
-            else:
-                # Vertical then horizontal
-                for y in range(min(y1, y2), max(y1, y2) + 1):
-                    if 0 < x1 < self.maze_width - 1 and 0 < y < self.maze_height - 1:
-                        dungeon[y][x1] = ' '
-                for x in range(min(x1, x2), max(x1, x2) + 1):
-                    if 0 < x < self.maze_width - 1 and 0 < y2 < self.maze_height - 1:
-                        dungeon[y2][x] = ' '
+
     
     def find_start_position(self) -> Tuple[int, int]:
         """Find start position"""
@@ -1482,14 +1366,21 @@ class EnhancedMazeGame:
                     current_room = room
                     break
         
-        # If in a room, reveal all floor tiles in that room
+        # If in a room, reveal all floor tiles in that room AND its doors
         if current_room:
+            # Reveal room interior
             for room_y in range(current_room.top, current_room.bottom):
                 for room_x in range(current_room.left, current_room.right):
                     if (0 <= room_x < len(self.maze[0]) and 
                         0 <= room_y < len(self.maze) and
                         self.maze[room_y][room_x] != '#'):  # Only reveal floor tiles
                         self.player.visited_cells.add((room_x, room_y))
+            
+            # Reveal all doors of this room
+            for door_x, door_y in current_room.doors:
+                if (0 <= door_x < len(self.maze[0]) and 
+                    0 <= door_y < len(self.maze)):
+                    self.player.visited_cells.add((door_x, door_y))
         else:
             # If not in a room, we're in a corridor - reveal nearby corridor tiles
             for dy in range(-2, 3):  # Reveal 5x5 area around player in corridors
@@ -1576,7 +1467,7 @@ class EnhancedMazeGame:
                 # Check if move is valid
                 if (0 <= new_y < len(self.maze) and 
                     0 <= new_x < len(self.maze[0]) and 
-                    self.maze[new_y][new_x] != '#'):
+                    self.maze[new_y][new_x] not in ['#', 'D', 'R']):  # Can't pass through walls or doors
                     
                     # Check if position is not occupied by another monster
                     occupied = any(m.x == new_x and m.y == new_y and m.alive 
@@ -1587,6 +1478,47 @@ class EnhancedMazeGame:
                         monster.y = new_y
                 
                 monster.last_move_time = current_time
+        
+        # Update room door states based on monster presence
+        self._update_room_doors()
+    
+    def _update_room_doors(self):
+        """Update door states based on whether rooms have living monsters."""
+        all_rooms = []
+        
+        # Collect all rooms
+        if hasattr(self, 'rooms'):
+            all_rooms.extend(self.rooms)
+        if hasattr(self, 'treasure_rooms'):
+            all_rooms.extend(self.treasure_rooms)
+        if hasattr(self, 'key_rooms'):
+            all_rooms.extend(self.key_rooms)
+        
+        for room in all_rooms:
+            # Count living monsters in this room
+            monsters_in_room = []
+            for monster in self.monsters:
+                if monster.alive and room.collidepoint(monster.x, monster.y):
+                    monsters_in_room.append(monster)
+            
+            room.monsters_in_room = monsters_in_room
+            
+            # Update door state
+            has_living_monsters = len(monsters_in_room) > 0
+            
+            # If room state changed, update door visuals
+            if room.doors_closed != has_living_monsters:
+                room.doors_closed = has_living_monsters
+                
+                # Update maze representation
+                for door_x, door_y in room.doors:
+                    if 0 <= door_y < len(self.maze) and 0 <= door_x < len(self.maze[0]):
+                        if has_living_monsters:
+                            # Keep as room door
+                            self.maze[door_y][door_x] = 'R'
+                        else:
+                            # Open the door (but keep it visible)
+                            self.maze[door_y][door_x] = 'O'  # O = Open door
     
     def update(self):
         """Update game state"""
@@ -1701,6 +1633,73 @@ class EnhancedMazeGame:
                                                 lock_text.get_width() + 4, lock_text.get_height() + 4)
                             pygame.draw.rect(self.screen, COLORS['BLACK'], text_bg)
                             self.screen.blit(lock_text, (text_x, text_y))
+                    
+                    elif cell == 'R':  # Closed Room Door (monsters present)
+                        # Dark red door indicating monsters are inside
+                        pygame.draw.rect(self.screen, (139, 69, 19), rect)  # Dark brown base
+                        pygame.draw.rect(self.screen, COLORS['RED'], rect, 4)  # Red border
+                        
+                        # Add warning indicators
+                        warning_color = COLORS['RED']
+                        for i in range(2):
+                            warning_y = screen_y + 8 + i * 12
+                            pygame.draw.line(self.screen, warning_color, 
+                                (screen_x + 4, warning_y), 
+                                (screen_x + self.cell_size - 4, warning_y), 2)
+                        
+                        # Add door handle
+                        handle_size = 8
+                        handle_x = screen_x + self.cell_size - handle_size - 6
+                        handle_y = screen_y + self.cell_size // 2 - handle_size // 2
+                        pygame.draw.rect(self.screen, COLORS['DARK_GRAY'], 
+                            pygame.Rect(handle_x, handle_y, handle_size, handle_size))
+                        
+                        # Show enemy indicator with distance check
+                        player_dist = abs(self.player.x - x) + abs(self.player.y - y)
+                        if player_dist <= 2:
+                            enemy_text = self.small_font.render("ENEMIES", True, COLORS['WHITE'])
+                            text_x = screen_x + self.cell_size // 2 - enemy_text.get_width() // 2
+                            text_y = screen_y - 20
+                            
+                            # Add background
+                            text_bg = pygame.Rect(text_x - 2, text_y - 2, 
+                                                enemy_text.get_width() + 4, enemy_text.get_height() + 4)
+                            pygame.draw.rect(self.screen, COLORS['RED'], text_bg)
+                            self.screen.blit(enemy_text, (text_x, text_y))
+                    
+                    elif cell == 'O':  # Open Room Door (no monsters)
+                        # Light brown door indicating room is clear
+                        pygame.draw.rect(self.screen, COLORS['BROWN'], rect)
+                        pygame.draw.rect(self.screen, COLORS['GREEN'], rect, 3)  # Green border
+                        
+                        # Add wood grain effect  
+                        grain_color = (160, 80, 20)
+                        for i in range(2):
+                            grain_y = screen_y + 5 + i * 8
+                            pygame.draw.line(self.screen, grain_color, 
+                                (screen_x + 3, grain_y), 
+                                (screen_x + self.cell_size - 3, grain_y), 1)
+                        
+                        # Add door handle
+                        handle_size = 6
+                        handle_x = screen_x + self.cell_size - handle_size - 6
+                        handle_y = screen_y + self.cell_size // 2 - handle_size // 2
+                        pygame.draw.rect(self.screen, COLORS['GOLD'], 
+                                       pygame.Rect(handle_x, handle_y, handle_size, handle_size))
+                        
+                        # Show clear indicator with distance check
+                        player_dist = abs(self.player.x - x) + abs(self.player.y - y)
+                        if player_dist <= 2:
+                            clear_text = self.small_font.render("CLEAR", True, COLORS['WHITE'])
+                            text_x = screen_x + self.cell_size // 2 - clear_text.get_width() // 2
+                            text_y = screen_y - 20
+                            
+                            # Add background
+                            text_bg = pygame.Rect(text_x - 2, text_y - 2, 
+                                                clear_text.get_width() + 4, clear_text.get_height() + 4)
+                            pygame.draw.rect(self.screen, COLORS['GREEN'], text_bg)
+                            self.screen.blit(clear_text, (text_x, text_y))
+                    
                     else:  # Floor
                         if cell == 'S':
                             pygame.draw.rect(self.screen, START_COLOR, rect)
@@ -2190,6 +2189,12 @@ class EnhancedMazeGame:
                         minimap_surface.fill(COLORS['DARK_BROWN'], mini_rect)
                         # Make doors more visible on minimap with border
                         pygame.draw.rect(minimap_surface, COLORS['GOLD'], mini_rect, 1)
+                    elif cell == 'R':  # Closed room door
+                        minimap_surface.fill(COLORS['RED'], mini_rect)
+                        pygame.draw.rect(minimap_surface, COLORS['DARK_BROWN'], mini_rect, 1)
+                    elif cell == 'O':  # Open room door
+                        minimap_surface.fill(COLORS['GREEN'], mini_rect)
+                        pygame.draw.rect(minimap_surface, COLORS['BROWN'], mini_rect, 1)
                     elif cell == 'S':
                         minimap_surface.fill(START_COLOR, mini_rect)
                     elif cell == 'E':
@@ -2569,7 +2574,10 @@ def main():
         game.run()
     except Exception as e:
         print(f"\n❌ Game error: {e}")
+        import traceback
+        traceback.print_exc()
         print("Please check your Python environment and try again.")
+        input("Press Enter to close...")
     finally:
         print("\n👋 Thanks for playing Enhanced Roguelike Dungeon Explorer!")
         print("=" * 60)
