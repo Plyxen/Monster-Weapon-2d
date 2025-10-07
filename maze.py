@@ -646,6 +646,9 @@ class EnhancedMazeGame:
             
         self.generate_items_and_monsters()
         
+        # Auto-reveal the starting room
+        self.reveal_room_at_position(self.player.x, self.player.y)
+        
         # Reset game state
         self.game_won = False
         self.game_over = False
@@ -769,8 +772,8 @@ class EnhancedMazeGame:
                 overlaps = any(new_room.inflate(4, 4).colliderect(room.inflate(4, 4)) for room in main_rooms)
                 
                 if not overlaps:
-                    # Create the room
-                    self.create_room(dungeon, room_x, room_y, room_width, room_height)
+                    # Create the room (force rectangular for first room - starting room)
+                    self.create_room(dungeon, room_x, room_y, room_width, room_height, room_index=i)
                     main_rooms.append(new_room)
                     break
     
@@ -969,7 +972,7 @@ class EnhancedMazeGame:
                         if dungeon[current_y][current_x] == '#':
                             dungeon[current_y][current_x] = ' '
     
-    def create_room(self, dungeon, x, y, width, height):
+    def create_room(self, dungeon, x, y, width, height, room_index=None):
         """
         Create a room with randomly selected Isaac-style architecture.
         
@@ -988,9 +991,14 @@ class EnhancedMazeGame:
             y: Top edge coordinate  
             width: Room width in cells
             height: Room height in cells
+            room_index: Index of the room (0 = starting room, forced rectangular)
         """
-        room_types = ['rectangular', 'circular', 'cross', 'l_shape', 'diamond', 'octagon', 'donut']
-        room_type = random.choice(room_types)
+        # Force rectangular (brick) shape for the starting room
+        if room_index == 0:
+            room_type = 'rectangular'
+        else:
+            room_types = ['rectangular', 'circular', 'cross', 'l_shape', 'diamond', 'octagon', 'donut']
+            room_type = random.choice(room_types)
         
         if room_type == 'rectangular':
             # Standard rectangular room with optional pillars
