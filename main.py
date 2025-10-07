@@ -136,31 +136,7 @@ class MazeGenerator:
                 end_row, end_col = max(end_candidates)
                 self.maze[end_row][end_col] = CellType.END
     
-    def print_maze(self):
-        """Print the maze to console"""
-        print("\n" + "═" * (self.width + 2))
-        for row in self.maze:
-            print("║" + "".join(cell.value for cell in row) + "║")
-        print("═" * (self.width + 2))
-        
-        print(f"\nMaze size: {self.width} x {self.height}")
-        print("Legend: # = Wall, ' ' = Path, S = Start, E = End")
-        
-        # Validate and report connectivity
-        is_connected = self.flood_fill_validation()
-        connectivity_status = "✅ All paths connected" if is_connected else "❌ Disconnected paths found"
-        print(f"Connectivity: {connectivity_status}")
-    
-    def export_maze_to_file(self, filename: str):
-        """Export maze to a text file"""
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write("═" * (self.width + 2) + "\n")
-            for row in self.maze:
-                f.write("║" + "".join(cell.value for cell in row) + "║\n")
-            f.write("═" * (self.width + 2) + "\n")
-            
-            f.write(f"\nMaze size: {self.width} x {self.height}\n")
-            f.write("Legend: # = Wall, ' ' = Path, S = Start, E = End\n")
+
     
     def get_maze_as_2d_array(self) -> List[List[str]]:
         """Get maze as 2D array of characters for game logic"""
@@ -220,14 +196,11 @@ class MazeGenerator:
         
         while attempt < max_attempts:
             if self.flood_fill_validation():
-                print(f"✅ Maze connectivity validated (attempt {attempt + 1})")
-                return
+                return  # Successfully connected
             
             # Find disconnected components and connect them
             self._connect_isolated_regions()
             attempt += 1
-        
-        print(f"⚠️ Warning: Could not fully connect maze after {max_attempts} attempts")
     
     def _connect_isolated_regions(self):
         """
@@ -275,7 +248,6 @@ class MazeGenerator:
         
         # Connect regions if we have more than one
         if len(regions) > 1:
-            print(f"🔧 Found {len(regions)} disconnected regions, connecting...")
             self._connect_regions(regions)
     
     def _connect_regions(self, regions: List[Set[Tuple[int, int]]]):
@@ -335,94 +307,14 @@ class MazeGenerator:
             if self.is_valid_position(current_row, current_col):
                 self.maze[current_row][current_col] = CellType.PATH
 
-def generate_different_sizes():
-    """Generate mazes of different sizes for demonstration"""
-    sizes = [
-        (15, 15, "Small"),
-        (31, 21, "Medium"), 
-        (51, 31, "Large"),
-        (71, 41, "Extra Large")
-    ]
-    
-    for width, height, size_name in sizes:
-        print(f"\n🎮 Generating {size_name} Maze ({width}x{height})")
-        print("=" * 50)
-        
-        generator = MazeGenerator(width, height)
-        generator.generate_maze()
-        generator.print_maze()
-        
-        # Export to file
-        filename = f"maze_{size_name.lower().replace(' ', '_')}.txt"
-        generator.export_maze_to_file(filename)
-        print(f"💾 Maze saved to: {filename}")
-
 def main():
-    """Main function to demonstrate maze generation"""
-    print("🎮 2D Maze Generator")
+    """Main function - now just shows that this is a library for pygame games"""
+    print("🎮 Maze Generation Library")
     print("=" * 40)
-    
-    # Ask user for preference
-    print("Choose an option:")
-    print("1. Generate single maze (default 41x21)")
-    print("2. Generate multiple maze sizes")
-    print("3. Custom size maze")
-    
-    choice = input("Enter choice (1-3) or press Enter for option 1: ").strip()
-    
-    if choice == "2":
-        generate_different_sizes()
-    elif choice == "3":
-        try:
-            width = int(input("Enter maze width (odd number recommended): "))
-            height = int(input("Enter maze height (odd number recommended): "))
-            
-            print(f"\nGenerating custom maze of size {width}x{height}...")
-            generator = MazeGenerator(width, height)
-            generator.generate_maze()
-            generator.print_maze()
-            
-            # Export option
-            save = input("\nSave to file? (y/n): ").strip().lower()
-            if save == 'y':
-                filename = f"custom_maze_{width}x{height}.txt"
-                generator.export_maze_to_file(filename)
-                print(f"💾 Maze saved to: {filename}")
-                
-        except ValueError:
-            print("Invalid input. Using default size.")
-            choice = "1"
-    
-    if choice == "1" or choice == "":
-        # Create and generate a maze
-        maze_width = 41  # Odd number for proper generation
-        maze_height = 21  # Odd number for proper generation
-        
-        print(f"Generating maze of size {maze_width}x{maze_height}...")
-        
-        generator = MazeGenerator(maze_width, maze_height)
-        maze = generator.generate_maze()
-        
-        # Display the maze
-        generator.print_maze()
-        
-        # Print some statistics
-        total_cells = maze_width * maze_height
-        path_cells = sum(1 for row in maze for cell in row if cell != CellType.WALL)
-        wall_cells = total_cells - path_cells
-        
-        print(f"\nMaze Statistics:")
-        print(f"Total cells: {total_cells}")
-        print(f"Path cells: {path_cells}")
-        print(f"Wall cells: {wall_cells}")
-        print(f"Path ratio: {path_cells / total_cells * 100:.1f}%")
-        
-        # Export option
-        save = input("\nSave to file? (y/n): ").strip().lower()
-        if save == 'y':
-            filename = "default_maze.txt"
-            generator.export_maze_to_file(filename)
-            print(f"💾 Maze saved to: {filename}")
+    print("This file contains the maze generation classes used by the pygame game.")
+    print("To play the game, run:")
+    print("  python maze.py               # Roguelike maze game")
+    print("  python play.bat              # Simple launcher (Windows)")
 
 if __name__ == "__main__":
     main()
