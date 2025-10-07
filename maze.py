@@ -11,7 +11,7 @@ A comprehensive Isaac-like roguelike game built with Pygame featuring:
 
 Author: Kucsák Ákos Dániel
 Version: 2.0
-Dependencies: pygame, main.py
+Dependencies: pygame
 """
 
 import pygame
@@ -20,7 +20,6 @@ import random
 import math
 from typing import Tuple, List, Optional
 from enum import Enum
-from main import MazeGenerator, CellType, Direction
 
 # Initialize Pygame
 pygame.init()
@@ -1701,13 +1700,6 @@ class EnhancedMazeGame:
                             pygame.draw.rect(self.screen, END_COLOR, rect)
                         else:
                             pygame.draw.rect(self.screen, FLOOR_COLOR, rect)
-                            # Add very subtle floor pattern (less noticeable)
-                            if (x + y) % 8 == 0:  # Less frequent pattern
-                                pattern_color = (40, 40, 40)  # Very subtle difference
-                                pygame.draw.rect(self.screen, pattern_color, 
-                                               pygame.Rect(screen_x + self.cell_size//3, 
-                                                         screen_y + self.cell_size//3, 
-                                                         self.cell_size//3, self.cell_size//3))
                 else:
                     # Unexplored - pure black for fog of war effect
                     pygame.draw.rect(self.screen, UNEXPLORED_COLOR, rect)
