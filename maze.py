@@ -131,7 +131,8 @@ COLORS = {
 
 # Game-specific color mapping for consistent theming
 WALL_COLOR =    COLORS['DARK_GRAY']     # Dungeon walls
-FLOOR_COLOR =   COLORS['BLACK']         # Floor tiles  
+FLOOR_COLOR =   (32, 32, 32)           # Floor tiles (dark grey, not black)
+UNEXPLORED_COLOR = COLORS['BLACK']      # Unexplored areas (pure black)
 PLAYER_COLOR =  COLORS['YELLOW']        # Player character
 START_COLOR =   COLORS['GREEN']         # Starting position
 END_COLOR =     COLORS['RED']           # Exit/goal position
@@ -1700,15 +1701,16 @@ class EnhancedMazeGame:
                             pygame.draw.rect(self.screen, END_COLOR, rect)
                         else:
                             pygame.draw.rect(self.screen, FLOOR_COLOR, rect)
-                            # Add subtle floor pattern
-                            if (x + y) % 4 == 0:
-                                pygame.draw.rect(self.screen, COLORS['DARK_GRAY'], 
-                                               pygame.Rect(screen_x + self.cell_size//4, 
-                                                         screen_y + self.cell_size//4, 
-                                                         self.cell_size//2, self.cell_size//2))
+                            # Add very subtle floor pattern (less noticeable)
+                            if (x + y) % 8 == 0:  # Less frequent pattern
+                                pattern_color = (40, 40, 40)  # Very subtle difference
+                                pygame.draw.rect(self.screen, pattern_color, 
+                                               pygame.Rect(screen_x + self.cell_size//3, 
+                                                         screen_y + self.cell_size//3, 
+                                                         self.cell_size//3, self.cell_size//3))
                 else:
-                    # Unexplored - dark
-                    pygame.draw.rect(self.screen, COLORS['BLACK'], rect)
+                    # Unexplored - pure black for fog of war effect
+                    pygame.draw.rect(self.screen, UNEXPLORED_COLOR, rect)
         
         # Draw items with enhanced graphics
         for item in self.items:
