@@ -1,3 +1,3 @@
 @echo off
-python loader.py
+python GameLoader.py
 exit
