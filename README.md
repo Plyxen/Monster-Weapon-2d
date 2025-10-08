@@ -1,4 +1,4 @@
-# 🏰 Enhanced Roguelike Dungeon Explorer 🗝️
+# 🏰 Roguelike Dungeon Explorer 🗝️
 
 **An Isaac-inspired dungeon crawler with procedural generation and tactical combat**
 
@@ -27,7 +27,7 @@ play.bat
 pip install -r requirements.txt
 
 # 2. Run the game
-python loader.py
+python GameLoader.py
 ```
 
 **System Requirements**: Windows/Mac/Linux, 1GB RAM, 1400x900+ display
@@ -65,17 +65,17 @@ python loader.py
 ```
 Monster-Weapon-2d/
 ├── 🎮 GAME FILES
-│   ├── loader.py                  # Game launcher with loading animation
-│   ├── maze.py                    # Main game engine and rendering
+│   ├── GameLoader.py              # Game launcher with loading animation
+│   ├── MazeGame.py                # Main game engine and rendering
 │   ├── play.bat                   # Quick-start launcher (Windows)
 │   └── install_dependencies.bat   # Dependency installer (Windows)
 │
 ├── 🏗️ CORE MODULES
-│   ├── constants.py               # Game configuration and constants
-│   ├── entities.py                # Game entities (Player, Monster, Item, Room, Camera)
-│   ├── dungeon_generator.py      # Procedural dungeon generation
-│   ├── item_manager.py            # Item placement and collection logic
-│   └── monster_manager.py         # Monster AI and combat system
+│   ├── GameConstants.py           # Game configuration and constants
+│   ├── GameEntities.py            # Game entities (Player, Monster, Item, Room, Camera)
+│   ├── DungeonGenerator.py       # Procedural dungeon generation
+│   ├── ItemManager.py             # Item placement and collection logic
+│   └── MonsterManager.py          # Monster AI and combat system
 │
 ├── � DOCUMENTATION
 │   ├── README.md                  # This file
@@ -94,12 +94,12 @@ Monster-Weapon-2d/
 
 #### **Core Game Files**
 
-- **`loader.py`** - Game launcher with animated loading screen
+- **`GameLoader.py`** - Game launcher with animated loading screen
   - Threading-based progress animation
   - Dependency checking and error handling
   - Clean startup experience
 
-- **`maze.py`** - Main game engine (~2000 lines)
+- **`MazeGame.py`** - Main game engine (~2000 lines)
   - `EnhancedMazeGame` class - Main game controller
   - Isaac-style dungeon generation
   - Advanced rendering system (fog of war, minimap, UI)
@@ -108,32 +108,32 @@ Monster-Weapon-2d/
 
 #### **Modular Components**
 
-- **`constants.py`** - Centralized configuration
+- **`GameConstants.py`** - Centralized configuration
   - Display settings (window size, FPS, colors)
   - Gameplay constants (player stats, monster settings)
   - Loot distribution settings
   - Font sizes and UI configuration
 
-- **`entities.py`** - Game object classes
+- **`GameEntities.py`** - Game object classes
   - `Player` - Character with stats, inventory, movement
   - `Monster` - Enemies with AI and combat
   - `Item` - Collectibles with types and values
   - `Room` - Dungeon chambers with doors and properties
   - `Camera` - Smooth viewport management
 
-- **`dungeon_generator.py`** - Procedural generation
+- **`DungeonGenerator.py`** - Procedural generation
   - `DungeonGenerator` class
   - Room placement algorithms
   - Corridor creation and connections
   - Door and lock management
   - 7 different room architectures
 
-- **`item_manager.py`** - Loot system
+- **`ItemManager.py`** - Loot system
   - Strategic item placement by room type
   - Balanced distribution (treasure/keys/equipment)
   - Item collection and effect application
 
-- **`monster_manager.py`** - Enemy system
+- **`MonsterManager.py`** - Enemy system
   - Monster generation and placement
   - AI behavior and movement
   - Combat mechanics with player interaction
@@ -213,23 +213,23 @@ cd Monster-Weapon-2d
 pip install -r requirements.txt
 
 # Run the game
-python loader.py
+python GameLoader.py
 
 # Or run directly (skip loading screen)
-python maze.py
+python MazeGame.py
 ```
 
 ### 🎯 Code Usage Examples
 
 ```python
 # Import game components
-from entities import Player, Monster, Item, Room
-from constants import *
-from item_manager import ItemManager
-from monster_manager import MonsterManager
+from GameEntities import Player, Monster, Item, Room
+from GameConstants import *
+from ItemManager import ItemManager
+from MonsterManager import MonsterManager
 
 # Create custom game instance
-from maze import EnhancedMazeGame
+from MazeGame import EnhancedMazeGame
 game = EnhancedMazeGame()
 game.generate_new_maze()  # Generate fresh dungeon
 
@@ -240,7 +240,7 @@ print(f"Items: {len([i for i in game.items if not i.collected])}")
 print(f"Monsters: {len([m for m in game.monsters if m.alive])}")
 
 # Customize game settings
-from constants import DEFAULT_PLAYER_HP, DEFAULT_MAZE_WIDTH, DEFAULT_MAZE_HEIGHT
+from GameConstants import DEFAULT_PLAYER_HP, DEFAULT_MAZE_WIDTH, DEFAULT_MAZE_HEIGHT
 print(f"Difficulty: {DEFAULT_PLAYER_HP}HP on {DEFAULT_MAZE_WIDTH}x{DEFAULT_MAZE_HEIGHT} map")
 ```
 
@@ -292,19 +292,12 @@ Contributions are welcome! Please:
 
 ### 🗂️ **Core Files**
 
-#### `maze.py` - Main Game (2000+ lines)
+#### `MazeGame.py` - Main Game (2500+ lines)
 Complete Isaac-like roguelike implementation:
 - **EnhancedMazeGame**: Main game controller and rendering engine
-- **Player**: Character system with stats, inventory, and progression  
-- **Room/Monster/Item Classes**: Game object hierarchy
-- **Camera System**: Smooth viewport management
-- **Advanced Graphics**: Detailed sprites and animations
-
-#### `main.py` - Generation Engine
-Maze creation utilities and algorithms:
-- **MazeGenerator**: Procedural generation algorithms
-- **CellType/Direction Enums**: Grid navigation constants
-- **Export Functions**: Save/load maze data
+- **Advanced Graphics**: Detailed sprites and animations with smooth movement
+- **Camera System**: Smooth viewport management with room transitions
+- **Fog of War**: Dynamic exploration and visibility system
 
 #### `requirements.txt` - Dependencies
 Professional dependency management with:
@@ -316,29 +309,18 @@ Professional dependency management with:
 
 ### 🎮 **Playing the Game**
 ```bash
-# Standard gameplay
-python maze.py
+# Standard gameplay (with loading screen)
+python GameLoader.py
 
-# With Python path (if needed)  
-python -m maze
-```
-
-### 🛠️ **Development & Testing**
-```bash
-# Run connectivity tests
-python test_connectivity.py
-
-# Run maze generation demos
-python demo_connected.py  
-
-# Interactive maze generation
-python main.py
+# Direct launch (skip loading screen)
+python MazeGame.py
 ```
 
 ### 🎨 **Code Integration**
 ```python
 # Use the game engine in your project
-from maze import EnhancedMazeGame, Player, Room
+from MazeGame import EnhancedMazeGame
+from GameEntities import Player, Room
 
 # Create custom game instance
 game = EnhancedMazeGame()
