@@ -9,6 +9,12 @@ used throughout the Enhanced Roguelike Dungeon Explorer.
 # GAME CONFIGURATION CONSTANTS
 # ========================================
 
+# Map Tile Types
+WALL = '#'
+FLOOR = ' '
+CORRIDOR = 'C'
+DOOR = 'D'
+
 # Display Settings
 WINDOW_WIDTH = 1400         # Main window width in pixels
 WINDOW_HEIGHT = 900         # Main window height in pixels  
@@ -44,12 +50,31 @@ DEFAULT_PLAYER_ATTACK = 10  # Base player attack power
 DEFAULT_PLAYER_DEFENSE = 5  # Base player defense
 DAMAGE_FLASH_DURATION = 10  # Frames for damage flash effect
 HEAL_FLASH_DURATION = 20    # Frames for heal flash effect
+INVINCIBILITY_FRAMES = 90   # Frames of invincibility after taking damage (1.5 seconds at 60 FPS)
+
+# Player Movement and Combat
+PLAYER_SPEED = 0.08         # Player movement speed (cells per frame) - REDUCED from 0.15
+PLAYER_SHOOT_COOLDOWN = 20  # Frames between player shots (was 15)
+PLAYER_BULLET_SPEED = 4.0   # Player bullet speed (pixels per frame) - REDUCED from 5.0
 
 # Monster Settings
 MONSTER_MOVE_DELAY = 2000   # Milliseconds between monster moves
 WEAK_MONSTER_HP_MAX = 2     # HP threshold for weak monsters (flies)
 MEDIUM_MONSTER_HP_MAX = 4   # HP threshold for medium monsters (gapers)
 STRONG_MONSTER_HP_MIN = 5   # HP threshold for strong monsters (monstros)
+
+# Enemy Type Speeds (cells per frame) - ALL REDUCED by ~40%
+ENEMY_SPEED_FLY = 0.07      # Fast enemy - REDUCED from 0.12
+ENEMY_SPEED_GAPER = 0.05    # Medium speed - REDUCED from 0.08
+ENEMY_SPEED_SHOOTER = 0.03  # Slow kiting enemy - REDUCED from 0.05
+ENEMY_SPEED_TANK = 0.025    # Very slow tank - REDUCED from 0.04
+ENEMY_SPEED_SPEEDY = 0.09   # Very fast enemy - REDUCED from 0.15
+ENEMY_SPEED_CHARGER = 0.04  # Base charger speed - REDUCED from 0.06
+ENEMY_SPEED_CHARGER_BOOST = 0.08  # Charger speed when close - REDUCED from 0.14
+
+# Enemy Bullet Settings
+ENEMY_BULLET_SPEED = 2.5    # Enemy bullet speed (pixels per frame) - REDUCED from 3.0
+ENEMY_SHOOT_COOLDOWN = 120  # Frames between enemy shots (2 seconds) - INCREASED from 90
 
 # Loot Distribution Settings
 TREASURE_ITEM_DENSITY = 6   # 1/6 density in treasure rooms
