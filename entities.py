@@ -355,20 +355,84 @@ class Player:
         if cell == 'D':
             if self.keys > 0:
                 self.keys -= 1
-                maze[grid_y][grid_x] = ' '
+                maze[grid_y][grid_x] = 'O'  # Change to open door
                 if game:
                     game.locked_doors = [(x, y) for (x, y) in game.locked_doors if (x, y) != (grid_x, grid_y)]
-                return True
+                # Teleport through the door
+                self._teleport_through_door(grid_x, grid_y, maze, game)
+                return False  # Don't move to door position, we teleported
             else:
                 return False
+        
+        # Check open doors - teleport through them
+        if cell == 'O':
+            self._teleport_through_door(grid_x, grid_y, maze, game)
+            return False  # Don't move to door position, we teleported
         
         # Check room doors
         if cell == 'R':
             # Closed room door - blocked by monsters, cannot pass
             return False
         
-        # Open doors and empty spaces are passable
+        # Empty spaces are passable
         return True
+    
+    def _teleport_through_door(self, door_x: int, door_y: int, maze: List[List[str]], game=None):
+        """Teleport player through a door to the adjacent room."""
+        if not game:
+            return
+        
+        # Find which room is on the other side of this door
+        target_room = None
+        current_room = game.current_room
+        
+        # Check all rooms to find which ones have this door
+        all_rooms = []
+        if hasattr(game, 'rooms'):
+            all_rooms.extend(game.rooms)
+        if hasattr(game, 'treasure_rooms'):
+            all_rooms.extend(game.treasure_rooms)
+        if hasattr(game, 'shop_rooms'):
+            all_rooms.extend(game.shop_rooms)
+        if hasattr(game, 'secret_rooms'):
+            all_rooms.extend(game.secret_rooms)
+        if hasattr(game, 'super_secret_rooms'):
+            all_rooms.extend(game.super_secret_rooms)
+        
+        # Find the room on the other side
+        for room in all_rooms:
+            if (door_x, door_y) in room.doors and room != current_room:
+                target_room = room
+                break
+        
+        if not target_room:
+            return
+        
+        # Determine teleport position based on door location relative to target room
+        if door_y == target_room.top - 1:  # Door is north of target room
+            # Teleport to just inside the room (closer to door)
+            self.x = door_x
+            self.y = target_room.top
+            self.real_x = float(self.x)
+            self.real_y = float(self.y)
+        elif door_y == target_room.bottom:  # Door is south of target room
+            # Teleport to just inside the room (closer to door)
+            self.x = door_x
+            self.y = target_room.bottom - 1
+            self.real_x = float(self.x)
+            self.real_y = float(self.y)
+        elif door_x == target_room.left - 1:  # Door is west of target room
+            # Teleport to just inside the room (closer to door)
+            self.x = target_room.left
+            self.y = door_y
+            self.real_x = float(self.x)
+            self.real_y = float(self.y)
+        elif door_x == target_room.right:  # Door is east of target room
+            # Teleport to just inside the room (closer to door)
+            self.x = target_room.right - 1
+            self.y = door_y
+            self.real_x = float(self.x)
+            self.real_y = float(self.y)
     
     def move(self, dx: int, dy: int, maze: List[List[str]], game=None) -> bool:
         """
@@ -429,44 +493,78 @@ class Camera:
         self.y = 0
         self.target_x = 0
         self.target_y = 0
-        self.smooth_factor = 0.1
         
-        # Isaac-style room transition
-        self.transitioning = False
-        self.transition_speed = 0.15  # Faster transition for room changes
+        # Room transition system
         self.current_room = None
-        self.locked_to_room = False  # When True, camera is locked to room bounds
+        self.transitioning = False
+        self.transition_progress = 1.0  # 0.0 = start, 1.0 = complete
+        self.transition_speed = 0.12  # Speed of room transition animation
+        self.lock_player_during_transition = False
     
-    def start_room_transition(self, target_room):
-        """Start a smooth transition to a new room (Isaac-style)."""
-        self.transitioning = True
-        self.current_room = target_room
-        self.locked_to_room = True
+    def start_room_transition(self, new_room):
+        """Start a smooth transition to center on a new room (Isaac-style)."""
+        if self.current_room != new_room:
+            self.current_room = new_room
+            self.transitioning = True
+            self.transition_progress = 0.0
+            self.lock_player_during_transition = True
     
     def update(self, target_x: float, target_y: float, map_width: int, map_height: int, cell_size: int, current_room=None):
-        """Update camera position to smoothly follow the player."""
-        # Always center on player (using real position for smooth following)
-        self.target_x = target_x * cell_size - self.width // 2
-        self.target_y = target_y * cell_size - self.height // 2
+        """Update camera position with smooth room transitions."""
         
-        # Calculate map dimensions in pixels
-        map_pixel_width = map_width * cell_size
-        map_pixel_height = map_height * cell_size
+        # Check if we entered a new room
+        if current_room and current_room != self.current_room:
+            self.start_room_transition(current_room)
         
-        # Apply bounds
-        if map_pixel_width <= self.width:
-            self.target_x = -(self.width - map_pixel_width) // 2
+        # Calculate target camera position
+        if self.transitioning and self.current_room:
+            # During transition: center on room
+            room = self.current_room
+            room_center_x = (room.left + room.right) / 2.0
+            room_center_y = (room.top + room.bottom) / 2.0
+            
+            self.target_x = room_center_x * cell_size - self.width // 2
+            self.target_y = room_center_y * cell_size - self.height // 2
+            
+            # Update transition progress
+            self.transition_progress += self.transition_speed
+            
+            if self.transition_progress >= 1.0:
+                self.transition_progress = 1.0
+                self.transitioning = False
+                self.lock_player_during_transition = False
+            
+            # Smooth easing for transition
+            # Use ease-out quad for smooth deceleration
+            t = self.transition_progress
+            ease_factor = 1 - (1 - t) * (1 - t)
+            
+            # Interpolate camera position
+            self.x += (self.target_x - self.x) * ease_factor
+            self.y += (self.target_y - self.y) * ease_factor
         else:
-            max_x = map_pixel_width - self.width
-            self.target_x = max(0, min(self.target_x, max_x))
-        
-        if map_pixel_height <= self.height:
-            self.target_y = -(self.height - map_pixel_height) // 2
-        else:
-            max_y = map_pixel_height - self.height
-            self.target_y = max(0, min(self.target_y, max_y))
-        
-        # Smooth interpolation - faster for more responsive following
-        smooth = 0.2  # Increased from 0.1 for snappier camera
-        self.x += (self.target_x - self.x) * smooth
-        self.y += (self.target_y - self.y) * smooth
+            # Normal following: track player smoothly
+            self.target_x = target_x * cell_size - self.width // 2
+            self.target_y = target_y * cell_size - self.height // 2
+            
+            # Calculate map dimensions in pixels
+            map_pixel_width = map_width * cell_size
+            map_pixel_height = map_height * cell_size
+            
+            # Apply bounds
+            if map_pixel_width <= self.width:
+                self.target_x = -(self.width - map_pixel_width) // 2
+            else:
+                max_x = map_pixel_width - self.width
+                self.target_x = max(0, min(self.target_x, max_x))
+            
+            if map_pixel_height <= self.height:
+                self.target_y = -(self.height - map_pixel_height) // 2
+            else:
+                max_y = map_pixel_height - self.height
+                self.target_y = max(0, min(self.target_y, max_y))
+            
+            # Smooth interpolation
+            smooth = 0.2
+            self.x += (self.target_x - self.x) * smooth
+            self.y += (self.target_y - self.y) * smooth
