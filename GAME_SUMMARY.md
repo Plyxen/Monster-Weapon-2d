@@ -2,25 +2,42 @@
 
 ## What You Have Now
 
-This project includes a complete 2D roguelike maze game with multiple versions and features:
+This project includes a complete 2D roguelike maze game with Isaac-style features:
 
 ### 📁 Files Created:
 
-1. **`maze.py`** - Complete roguelike maze game
-   - Procedurally generated mazes with fog of war
-   - Items system (treasures, potions, weapons, shields)
-   - Monster AI and combat system
-   - Player stats (HP, attack, defense)
+1. **`MazeGame.py`** - Complete roguelike maze game
+   - Procedurally generated Isaac-style dungeons with rooms
+   - Items system (treasures, potions, weapons, shields, keys)
+   - Monster AI with smooth movement and combat system
+   - Player stats (HP, attack, defense) with smooth movement
    - Score tracking and visual effects
-   - Real-time minimap in top-right corner
-   - Smooth camera following
+   - Real-time minimap showing explored rooms
+   - Smooth camera following with room transitions
+   - Door teleportation system
 
-3. **`main.py`** - Maze generation engine
-   - Core maze generation algorithms used by pygame games
-   - Recursive backtracking implementation
-   - Connectivity validation
+2. **`GameEntities.py`** - Game entity classes
+   - Player, Monster, Item, Room, Camera classes
+   - Smooth movement system with wall sliding collision
 
-4. **`requirements.txt`** - Python dependencies
+3. **`GameConstants.py`** - Game configuration
+   - All game constants and settings
+   - Color definitions and gameplay parameters
+
+4. **`DungeonGenerator.py`** - Procedural generation
+   - Isaac-style room-based dungeon generation
+   - Multiple room types (normal, treasure, shop, secret, super secret, boss)
+
+5. **`ItemManager.py`** - Item placement system
+   - Strategic item placement by room type
+
+6. **`MonsterManager.py`** - Monster AI system
+   - Monster generation and behavior
+
+7. **`GameLoader.py`** - Game launcher
+   - Animated loading screen with progress bar
+
+8. **`requirements.txt`** - Python dependencies
    - Lists pygame requirement
 
 ## 🎯 Key Features Implemented:
@@ -60,22 +77,16 @@ This project includes a complete 2D roguelike maze game with multiple versions a
   - Health bars for monsters
   - Score tracking
   - Exploration progress bar
-  - Game over/victory screens
-
 ## 🎮 How to Play:
 
-### Simple Version (`maze_game.py`):
-1. Use WASD or arrow keys to move
-2. Explore the maze to reveal new areas
-3. Find the red exit tile to win
-4. Watch your progress on the minimap
-
-### Enhanced Version (`enhanced_maze_game.py`):
-1. All simple version mechanics plus:
-2. Collect items by walking over them
-3. Fight monsters by walking into them
-4. Manage your health with potions
-5. Try to achieve the highest score
+1. Use WASD or arrow keys for smooth movement
+2. Explore rooms to reveal new areas
+3. Walk through doors to teleport to adjacent rooms with smooth camera transitions
+4. Collect items by walking over them
+5. Fight monsters by walking into them
+6. Find keys to unlock treasure room doors
+7. Clear all enemies in a room to unlock doors
+8. Find the boss room and complete the floor
 
 ## 🚀 Quick Start:
 
@@ -83,16 +94,21 @@ This project includes a complete 2D roguelike maze game with multiple versions a
 # Install pygame
 pip install pygame
 
-# Run the game
-python maze.py
+# Run the game (with loading screen)
+python GameLoader.py
+
+# Or run directly
+python MazeGame.py
 ```
 
 ## 🔧 Technical Details:
 
 - **Engine**: Pygame 2.6+
-- **Resolution**: 1200x800 (simple) / 1400x900 (enhanced)
-- **Maze Algorithm**: Recursive backtracking
-- **Rendering**: Tile-based with smooth camera
+- **Resolution**: 1400x900
+- **Generation**: Isaac-style room-based procedural generation
+- **Movement**: Smooth sub-grid movement with wall sliding collision
+- **Camera**: Smooth following with room transition animations
+- **Rendering**: Viewport culling with fog of war
 - **Performance**: 60 FPS target
 
 ## 🎨 Visual Design:
