@@ -17,12 +17,12 @@ FPS = 60                    # Target frames per second
 # Gameplay Constants  
 DEFAULT_UI_WIDTH = 250      # Right panel width for stats/minimap
 DEFAULT_MINIMAP_SIZE = 180  # Minimap dimensions in pixels
-DEFAULT_CELL_SIZE = 40      # Pixels per grid cell (large for detail)
+DEFAULT_CELL_SIZE = 55      # Pixels per grid cell (zoomed in for better view)
 DEFAULT_MOVE_DELAY = 150    # Milliseconds between moves when holding key
 
 # Dungeon Generation Settings
-DEFAULT_MAZE_WIDTH = 45     # Dungeon width in grid cells
-DEFAULT_MAZE_HEIGHT = 29    # Dungeon height in grid cells
+DEFAULT_MAZE_WIDTH = 90     # Dungeon width in grid cells (increased for better spacing)
+DEFAULT_MAZE_HEIGHT = 60    # Dungeon height in grid cells (increased for better spacing)
 MAIN_ROOM_COUNT_MIN = 15    # Minimum main progression rooms
 MAIN_ROOM_COUNT_MAX = 20    # Maximum main progression rooms
 TREASURE_ROOM_COUNT_MIN = 8 # Minimum treasure rooms
