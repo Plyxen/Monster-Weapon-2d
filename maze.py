@@ -89,14 +89,16 @@ class EnhancedMazeGame:
         self.monsters = []
         self.locked_doors = []
         
+        # ---- Camera System Initialization ----
+        self.cell_size = DEFAULT_CELL_SIZE         # Pixels per grid cell (large for detail)
+        self.current_room = None  # Track which room player is in for camera
+        
         print("🏗️ Generating initial dungeon...")
         self.generate_new_maze()
         print("✅ Dungeon generated!")
         
         # ---- Camera System ----
-        self.cell_size = DEFAULT_CELL_SIZE         # Pixels per grid cell (large for detail)
         self.camera = Camera(WINDOW_WIDTH - self.ui_width, WINDOW_HEIGHT)
-        self.current_room = None  # Track which room player is in for camera
         
         # ---- Game State Management ----
         self.game_won = False
@@ -452,16 +454,12 @@ class EnhancedMazeGame:
 
     def create_isaac_connection(self, dungeon, room1, room2, direction, 
         start_x, start_y, room_width, room_height, corridor_length):
-        """Create a door and corridor connection between two adjacent rooms."""
+        """Create a door connection between two adjacent rooms (no corridor - direct teleport)."""
         if direction == 'N':  # North - connect top of room1 to bottom of room2
             door_x = room1.centerx
             door_y = room1.top - 1
-            corridor_y = room1.top - corridor_length
             
-            # Create corridor
-            for cy in range(corridor_y, room1.top):
-                if 0 <= cy < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                    dungeon[cy][door_x] = ' '
+            # NO corridor tiles - door is directly at room boundary
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
@@ -469,7 +467,7 @@ class EnhancedMazeGame:
                     dungeon[door_y][door_x] = 'D'  # Locked door
                     self.locked_doors.append((door_x, door_y))
                 else:
-                    dungeon[door_y][door_x] = 'R'  # Room door
+                    dungeon[door_y][door_x] = 'O'  # Open door (changed from 'R')
                     # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
                     room2.doors.append((door_x, door_y))
@@ -477,11 +475,8 @@ class EnhancedMazeGame:
         elif direction == 'S':  # South
             door_x = room1.centerx
             door_y = room1.bottom
-            corridor_y = room1.bottom + corridor_length
             
-            for cy in range(room1.bottom + 1, corridor_y + 1):
-                if 0 <= cy < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                    dungeon[cy][door_x] = ' '
+            # NO corridor tiles - door is directly at room boundary
             
             # Create doors with bounds checking  
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
@@ -489,7 +484,7 @@ class EnhancedMazeGame:
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
-                    dungeon[door_y][door_x] = 'R'
+                    dungeon[door_y][door_x] = 'O'  # Open door
                     # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
                     room2.doors.append((door_x, door_y))
@@ -497,11 +492,8 @@ class EnhancedMazeGame:
         elif direction == 'E':  # East
             door_x = room1.right
             door_y = room1.centery
-            corridor_x = room1.right + corridor_length
             
-            for cx in range(room1.right + 1, corridor_x + 1):
-                if 0 <= door_y < len(dungeon) and 0 <= cx < len(dungeon[0]):
-                    dungeon[door_y][cx] = ' '
+            # NO corridor tiles - door is directly at room boundary
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
@@ -509,7 +501,7 @@ class EnhancedMazeGame:
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
-                    dungeon[door_y][door_x] = 'R'
+                    dungeon[door_y][door_x] = 'O'  # Open door
                     # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
                     room2.doors.append((door_x, door_y))
@@ -517,11 +509,8 @@ class EnhancedMazeGame:
         elif direction == 'W':  # West
             door_x = room1.left - 1
             door_y = room1.centery
-            corridor_x = room1.left - corridor_length
             
-            for cx in range(corridor_x, room1.left):
-                if 0 <= door_y < len(dungeon) and 0 <= cx < len(dungeon[0]):
-                    dungeon[door_y][cx] = ' '
+            # NO corridor tiles - door is directly at room boundary
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
@@ -529,7 +518,7 @@ class EnhancedMazeGame:
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
-                    dungeon[door_y][door_x] = 'R'
+                    dungeon[door_y][door_x] = 'O'  # Open door
                     # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
                     room2.doors.append((door_x, door_y))
@@ -948,7 +937,7 @@ class EnhancedMazeGame:
                     pass
         
         # Continuous smooth movement - check held keys every frame
-        if not self.game_over:
+        if not self.game_over and not self.camera.lock_player_during_transition:
             keys = pygame.key.get_pressed()
             
             # Calculate movement direction
@@ -974,6 +963,9 @@ class EnhancedMazeGame:
             # Check if player moved to a new grid cell
             if (self.player.x, self.player.y) != (old_x, old_y):
                 self.process_player_action()
+        elif self.camera.lock_player_during_transition:
+            # Stop player movement during room transition
+            self.player.set_velocity(0, 0)
         
         return True
     
@@ -1065,6 +1057,10 @@ class EnhancedMazeGame:
         
         # If in a room, reveal all floor tiles in that room AND its doors
         if current_room:
+            # Update game's current room for camera transitions
+            if self.current_room != current_room:
+                self.current_room = current_room
+            
             # Clear all previously visited cells - only show current room
             self.player.visited_cells.clear()
             
