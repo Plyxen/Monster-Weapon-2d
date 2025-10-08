@@ -2,6 +2,7 @@ import sys
 import time
 import threading
 import os
+import warnings
 
 class GameLoader:
     def __init__(self):
@@ -56,6 +57,11 @@ class GameLoader:
         sys.stdout.flush()
 
 if __name__ == "__main__":
+    # Suppress all pygame and deprecation warnings
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    
     # Show banner
     print("=" * 50)
     print("   ROGUELIKE DUNGEON EXPLORER")
@@ -73,9 +79,6 @@ if __name__ == "__main__":
         time.sleep(0.4)
         
         loader.update_progress(30, "Importing Pygame...")
-        
-        # Suppress pygame welcome message
-        os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
         import pygame
         time.sleep(0.4)
         
