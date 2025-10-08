@@ -243,7 +243,7 @@ class Player:
     
     def update_position(self, maze: List[List[str]], game=None):
         """
-        Update player position based on velocity with collision detection.
+        Update player position based on velocity with smooth wall sliding collision.
         
         Args:
             maze: 2D grid representing the dungeon layout
@@ -252,7 +252,56 @@ class Player:
         if self.vel_x == 0 and self.vel_y == 0:
             return
         
-        # Try to move horizontally
+        # Store original velocity for diagonal sliding
+        original_vel_x = self.vel_x
+        original_vel_y = self.vel_y
+        
+        # Try full diagonal movement first
+        if self.vel_x != 0 and self.vel_y != 0:
+            new_real_x = self.real_x + self.vel_x
+            new_real_y = self.real_y + self.vel_y
+            new_grid_x = int(round(new_real_x))
+            new_grid_y = int(round(new_real_y))
+            
+            # Check if diagonal movement is possible
+            if self._can_move_to(new_grid_x, new_grid_y, maze, game):
+                self.real_x = new_real_x
+                self.real_y = new_real_y
+                if new_grid_x != self.x:
+                    self.prev_x = self.x
+                    self.x = new_grid_x
+                    self.visited_cells.add((self.x, self.y))
+                if new_grid_y != self.y:
+                    self.prev_y = self.y
+                    self.y = new_grid_y
+                    self.visited_cells.add((self.x, self.y))
+                return
+            
+            # Diagonal blocked, try sliding along one axis
+            # Try horizontal movement (slide along horizontal wall)
+            if self._can_move_to(new_grid_x, self.y, maze, game):
+                self.real_x = new_real_x
+                if new_grid_x != self.x:
+                    self.prev_x = self.x
+                    self.x = new_grid_x
+                    self.visited_cells.add((self.x, self.y))
+                # Don't move vertically but keep position
+                return
+            
+            # Try vertical movement (slide along vertical wall)
+            if self._can_move_to(self.x, new_grid_y, maze, game):
+                self.real_y = new_real_y
+                if new_grid_y != self.y:
+                    self.prev_y = self.y
+                    self.y = new_grid_y
+                    self.visited_cells.add((self.x, self.y))
+                # Don't move horizontally but keep position
+                return
+            
+            # Both blocked - corner collision, just stop (don't snap back)
+            return
+        
+        # Single-axis movement (horizontal OR vertical, not both)
         if self.vel_x != 0:
             new_real_x = self.real_x + self.vel_x
             new_grid_x = int(round(new_real_x))
@@ -264,11 +313,8 @@ class Player:
                     self.prev_x = self.x
                     self.x = new_grid_x
                     self.visited_cells.add((self.x, self.y))
-            else:
-                # Snap to grid if blocked
-                self.real_x = float(self.x)
+            # If blocked, just don't move (stay at current position)
         
-        # Try to move vertically
         if self.vel_y != 0:
             new_real_y = self.real_y + self.vel_y
             new_grid_y = int(round(new_real_y))
@@ -280,9 +326,7 @@ class Player:
                     self.prev_y = self.y
                     self.y = new_grid_y
                     self.visited_cells.add((self.x, self.y))
-            else:
-                # Snap to grid if blocked
-                self.real_y = float(self.y)
+            # If blocked, just don't move (stay at current position)
     
     def _can_move_to(self, grid_x: int, grid_y: int, maze: List[List[str]], game=None) -> bool:
         """
