@@ -8,7 +8,25 @@ Navigate through randomly generated dungeons, collect powerful items, fight mons
 ![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
 ![Pygame](https://img.shields.io/badge/pygame-2.5%2B-orange)
 
-## 🚀 Quick Start
+## 🆕 Version 2.0 Updates
+
+### Bug Fixes
+- ✅ **Enemy Room Lock**: Enemies stay in their spawn rooms (no more teleporting!)
+- ✅ **Invincibility Frames**: 1.5 seconds of invincibility after damage (no more one-shots)
+- ✅ **Pure Room Combat**: Removed corridor enemies for true Isaac-style gameplay
+
+### Balance & Speed Changes
+All speeds reduced ~40% for more tactical, strategic gameplay:
+- **Player Movement**: Slowed for better control
+- **Enemy Speeds**: All enemy types balanced and slowed
+- **Bullet Speeds**: Player and enemy projectiles rebalanced
+
+### Code Organization
+- **GameConstants.py**: All game constants in one organized file
+- **Better Documentation**: Clearer code comments and structure
+- **Cleaner Architecture**: Improved imports and modularity
+
+---
 
 ### 🎮 For Players - Easy Installation
 
