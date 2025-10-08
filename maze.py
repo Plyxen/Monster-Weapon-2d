@@ -14,6 +14,9 @@ Version: 2.0
 Dependencies: pygame
 """
 
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import pygame
 import sys
 import random
@@ -56,7 +59,9 @@ class EnhancedMazeGame:
         camera: Camera system for viewport management
         rooms: List of main progression rooms
         treasure_rooms: List of optional treasure rooms
-        key_rooms: List of rooms containing keys
+        shop_rooms: List of shop rooms (contain keys)
+        secret_rooms: List of secret rooms (premium loot)
+        super_secret_rooms: List of super secret rooms (ultra loot)
         items: List of all collectible items
         monsters: List of all enemy creatures
         locked_doors: List of door positions requiring keys
@@ -91,6 +96,7 @@ class EnhancedMazeGame:
         # ---- Camera System ----
         self.cell_size = DEFAULT_CELL_SIZE         # Pixels per grid cell (large for detail)
         self.camera = Camera(WINDOW_WIDTH - self.ui_width, WINDOW_HEIGHT)
+        self.current_room = None  # Track which room player is in for camera
         
         # ---- Game State Management ----
         self.game_won = False
@@ -141,10 +147,13 @@ class EnhancedMazeGame:
             
         self.generate_items_and_monsters()
         
-        # Initialize room door states based on monster positions
-        self._update_room_doors()
+        # Set ALL doors to OPEN initially (will close when entering rooms with monsters)
+        for y in range(len(self.maze)):
+            for x in range(len(self.maze[0])):
+                if self.maze[y][x] == 'R':
+                    self.maze[y][x] = 'O'
         
-        # Auto-reveal the starting room
+        # Auto-reveal and load the starting room
         self.reveal_room_at_position(self.player.x, self.player.y)
         
         # Reset game state
@@ -169,22 +178,22 @@ class EnhancedMazeGame:
         # Initialize dungeon filled with walls
         dungeon = [['#' for _ in range(self.maze_width)] for _ in range(self.maze_height)]
         
-        # Isaac-style grid layout parameters - optimized for 45x29 dungeon
-        room_width = 5   # Each room is 5x3 cells (smaller to fit better)
-        room_height = 3
-        corridor_length = 1  # 1-cell corridors between rooms (more compact)
+        # Isaac-style grid layout parameters - optimized for larger dungeon
+        room_width = 8   # Each room is 8x6 cells (bigger rooms for better gameplay)
+        room_height = 6
+        corridor_length = 1  # 1-cell corridors between rooms (Isaac style)
         
         # Calculate maximum grid size that fits in the dungeon
         max_grid_width = (self.maze_width - 4) // (room_width + corridor_length)
         max_grid_height = (self.maze_height - 4) // (room_height + corridor_length)
         
-        # Use optimal grid size for the available space
-        grid_width = min(6, max_grid_width)   # 6x5 grid should fit in 45x29
-        grid_height = min(5, max_grid_height)
+        # Use a reasonable grid size (not too packed)
+        grid_width = min(9, max_grid_width)   # Max 9 rooms wide (more rooms with 1-cell corridors)
+        grid_height = min(6, max_grid_height)  # Max 6 rooms tall
         
         # Ensure minimum grid size
-        grid_width = max(3, grid_width)
-        grid_height = max(3, grid_height)
+        grid_width = max(5, grid_width)
+        grid_height = max(4, grid_height)
         
         # Calculate actual space needed and center the layout
         total_width = grid_width * room_width + (grid_width - 1) * corridor_length
@@ -199,16 +208,21 @@ class EnhancedMazeGame:
         room_grid = [[None for _ in range(grid_width)] for _ in range(grid_height)]
         main_rooms = []
         treasure_rooms = []
-        key_rooms = []
+        shop_rooms = []
+        secret_rooms = []
+        super_secret_rooms = []
         
         # Generate Isaac-style layout
-        self.create_isaac_layout(dungeon, room_grid, main_rooms, treasure_rooms, key_rooms, 
+        self.create_isaac_layout(dungeon, room_grid, main_rooms, treasure_rooms, shop_rooms, 
+            secret_rooms, super_secret_rooms,
             start_x, start_y, grid_width, grid_height, room_width, room_height, corridor_length)
         
         # Store rooms for later use
         self.rooms = main_rooms
         self.treasure_rooms = treasure_rooms
-        self.key_rooms = key_rooms
+        self.shop_rooms = shop_rooms
+        self.secret_rooms = secret_rooms
+        self.super_secret_rooms = super_secret_rooms
         self.locked_doors = []
         
         # Create doors between rooms (Isaac style)
@@ -220,36 +234,42 @@ class EnhancedMazeGame:
         
         return dungeon
     
-    def create_isaac_layout(self, dungeon, room_grid, main_rooms, treasure_rooms, key_rooms,
+    def create_isaac_layout(self, dungeon, room_grid, main_rooms, treasure_rooms, shop_rooms,
+        secret_rooms, super_secret_rooms,
         start_x, start_y, grid_width, grid_height, room_width, room_height, corridor_length):
         """
         Create Binding of Isaac style room layout with grid-based positioning.
         
-        Isaac Layout Rules:
-        - Start room in center of grid
-        - 8-15 normal rooms connected in a branching pattern
-        - 2-4 treasure rooms at dead ends (require keys)
-        - 1-2 shop rooms (key rooms in our case)
-        - 1 boss room at a far corner
-        - Rooms connect only through cardinal directions (N/S/E/W)
+        Floor Layout (Guaranteed rooms):
+        - 1 Start room in center
+        - 1 Boss room at a far corner
+        - 1 Treasure room (requires key)
+        - 1 Shop room
+        - 1 Secret room
+        - 1 Super Secret room
+        - Normal rooms to fill out the floor
         """
         center_x = grid_width // 2
         center_y = grid_height // 2
         
-        # Create starting room at center
+        # Create starting room at center - this room will NEVER have monsters
         room_x = start_x + center_x * (room_width + corridor_length)
         room_y = start_y + center_y * (room_height + corridor_length)
         
-        start_room = Room(room_x, room_y, room_width, room_height, 'main', 0)
+        start_room = Room(room_x, room_y, room_width, room_height, 'start', 0)
+        start_room.is_starting_room = True  # Flag to prevent monster spawns
         self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
         room_grid[center_y][center_x] = start_room
         main_rooms.append(start_room)
         
+        # Store reference to starting room
+        self.starting_room = start_room
+        
         # Place start marker
         dungeon[start_room.centery][start_room.centerx] = 'S'
         
-        # Generate room layout using Isaac's branching algorithm
-        rooms_to_generate = random.randint(8, 15)  # Total normal rooms including start
+        # Generate normal rooms using Isaac's branching algorithm
+        rooms_to_generate = random.randint(10, 16)  # Normal rooms
         available_positions = []
         
         # Add adjacent positions to starting room
@@ -258,20 +278,24 @@ class EnhancedMazeGame:
             if 0 <= new_gx < grid_width and 0 <= new_gy < grid_height:
                 available_positions.append((new_gx, new_gy))
         
-        # Generate main rooms by branching outward
+        # Generate main rooms with better branching (Isaac-style)
+        branch_probability = 0.4  # 40% chance to branch instead of extending
         for i in range(1, rooms_to_generate):
             if not available_positions:
                 break
-                
-            # Pick a random available position
-            grid_x, grid_y = random.choice(available_positions)
-            available_positions.remove((grid_x, grid_y))
+            
+            # Isaac-style branching: Prefer positions further from existing rooms
+            if random.random() < branch_probability and len(available_positions) > 2:
+                idx = random.randint(len(available_positions) // 2, len(available_positions) - 1)
+                grid_x, grid_y = available_positions.pop(idx)
+            else:
+                grid_x, grid_y = available_positions.pop(0)
             
             # Create room at this grid position
             room_x = start_x + grid_x * (room_width + corridor_length)
             room_y = start_y + grid_y * (room_height + corridor_length)
             
-            new_room = Room(room_x, room_y, room_width, room_height, 'main', i)
+            new_room = Room(room_x, room_y, room_width, room_height, 'normal', i)
             self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
             room_grid[grid_y][grid_x] = new_room
             main_rooms.append(new_room)
@@ -288,7 +312,6 @@ class EnhancedMazeGame:
         boss_positions = [
             (0, 0), (grid_width-1, 0), (0, grid_height-1), (grid_width-1, grid_height-1)
         ]
-        # Find the corner furthest from center that's available
         best_boss_pos = None
         max_distance = 0
         for gx, gy in boss_positions:
@@ -297,6 +320,11 @@ class EnhancedMazeGame:
                 if distance > max_distance:
                     max_distance = distance
                     best_boss_pos = (gx, gy)
+        
+        if not best_boss_pos and available_positions:
+            # Use furthest available position
+            best_boss_pos = max(available_positions, key=lambda pos: abs(pos[0] - center_x) + abs(pos[1] - center_y))
+            available_positions.remove(best_boss_pos)
         
         if best_boss_pos:
             grid_x, grid_y = best_boss_pos
@@ -311,7 +339,7 @@ class EnhancedMazeGame:
             # Place end marker
             dungeon[boss_room.centery][boss_room.centerx] = 'E'
         
-        # Create treasure rooms at dead ends
+        # Create EXACTLY 1 treasure room at a dead end
         dead_ends = []
         for gy in range(grid_height):
             for gx in range(grid_width):
@@ -327,38 +355,56 @@ class EnhancedMazeGame:
                     if adjacent_count == 1:  # Dead end
                         dead_ends.append((gx, gy))
         
-        # Convert some dead ends to treasure rooms
-        treasure_count = min(random.randint(2, 4), len(dead_ends))
-        for i in range(treasure_count):
-            if dead_ends:
-                grid_x, grid_y = dead_ends.pop(random.randint(0, len(dead_ends)-1))
-                # Find adjacent empty position for treasure room
-                for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                    new_gx, new_gy = grid_x + dx, grid_y + dy
-                    if (0 <= new_gx < grid_width and 0 <= new_gy < grid_height and 
-                        room_grid[new_gy][new_gx] is None):
-                        
-                        room_x = start_x + new_gx * (room_width + corridor_length)
-                        room_y = start_y + new_gy * (room_height + corridor_length)
-                        
-                        treasure_room = Room(room_x, room_y, room_width, room_height, 'treasure', i)
-                        self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
-                        room_grid[new_gy][new_gx] = treasure_room
-                        treasure_rooms.append(treasure_room)
-                        break
+        # Place 1 treasure room
+        if dead_ends:
+            grid_x, grid_y = dead_ends.pop(random.randint(0, len(dead_ends)-1))
+            # Find adjacent empty position for treasure room
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                new_gx, new_gy = grid_x + dx, grid_y + dy
+                if (0 <= new_gx < grid_width and 0 <= new_gy < grid_height and 
+                    room_grid[new_gy][new_gx] is None):
+                    
+                    room_x = start_x + new_gx * (room_width + corridor_length)
+                    room_y = start_y + new_gy * (room_height + corridor_length)
+                    
+                    treasure_room = Room(room_x, room_y, room_width, room_height, 'treasure', 0)
+                    self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+                    room_grid[new_gy][new_gx] = treasure_room
+                    treasure_rooms.append(treasure_room)
+                    break
         
-        # Create shop rooms (key rooms) 
-        shop_count = random.randint(1, 2)
-        for i in range(shop_count):
-            if available_positions:
-                grid_x, grid_y = available_positions.pop(0)
-                room_x = start_x + grid_x * (room_width + corridor_length)
-                room_y = start_y + grid_y * (room_height + corridor_length)
-                
-                key_room = Room(room_x, room_y, room_width, room_height, 'key', i)
-                self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
-                room_grid[grid_y][grid_x] = key_room
-                key_rooms.append(key_room)
+        # Create EXACTLY 1 shop room
+        if available_positions:
+            grid_x, grid_y = available_positions.pop(0)
+            room_x = start_x + grid_x * (room_width + corridor_length)
+            room_y = start_y + grid_y * (room_height + corridor_length)
+            
+            shop_room = Room(room_x, room_y, room_width, room_height, 'shop', 0)
+            self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+            room_grid[grid_y][grid_x] = shop_room
+            shop_rooms.append(shop_room)
+        
+        # Create EXACTLY 1 secret room
+        if available_positions:
+            grid_x, grid_y = available_positions.pop(0)
+            room_x = start_x + grid_x * (room_width + corridor_length)
+            room_y = start_y + grid_y * (room_height + corridor_length)
+            
+            secret_room = Room(room_x, room_y, room_width, room_height, 'secret', 0)
+            self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+            room_grid[grid_y][grid_x] = secret_room
+            secret_rooms.append(secret_room)
+        
+        # Create EXACTLY 1 super secret room
+        if available_positions:
+            grid_x, grid_y = available_positions.pop(0)
+            room_x = start_x + grid_x * (room_width + corridor_length)
+            room_y = start_y + grid_y * (room_height + corridor_length)
+            
+            super_secret_room = Room(room_x, room_y, room_width, room_height, 'super_secret', 0)
+            self.create_isaac_room(dungeon, room_x, room_y, room_width, room_height)
+            room_grid[grid_y][grid_x] = super_secret_room
+            super_secret_rooms.append(super_secret_room)
 
     def create_isaac_room(self, dungeon, x, y, width, height):
         """Create a simple rectangular room (Isaac style) with bounds checking."""
@@ -384,12 +430,11 @@ class EnhancedMazeGame:
                 if current_room is None:
                     continue
                 
-                # Check each direction for adjacent rooms
+                # Only check South and East to avoid duplicate connections
+                # (North and West will be handled by the adjacent rooms)
                 directions = [
-                    (0, -1, 'N'),  # North
                     (0, 1, 'S'),   # South  
-                    (1, 0, 'E'),   # East
-                    (-1, 0, 'W')   # West
+                    (1, 0, 'E')    # East
                 ]
                 
                 for dx, dy, direction in directions:
@@ -420,12 +465,14 @@ class EnhancedMazeGame:
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room1.room_type == 'treasure':
+                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
                     dungeon[door_y][door_x] = 'D'  # Locked door
                     self.locked_doors.append((door_x, door_y))
                 else:
                     dungeon[door_y][door_x] = 'R'  # Room door
+                    # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
+                    room2.doors.append((door_x, door_y))
                 
         elif direction == 'S':  # South
             door_x = room1.centerx
@@ -438,12 +485,14 @@ class EnhancedMazeGame:
             
             # Create doors with bounds checking  
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room2.room_type == 'treasure':
+                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
                     dungeon[door_y][door_x] = 'R'
+                    # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
+                    room2.doors.append((door_x, door_y))
                 
         elif direction == 'E':  # East
             door_x = room1.right
@@ -456,12 +505,14 @@ class EnhancedMazeGame:
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room2.room_type == 'treasure':
+                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
                     dungeon[door_y][door_x] = 'R'
+                    # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
+                    room2.doors.append((door_x, door_y))
                 
         elif direction == 'W':  # West
             door_x = room1.left - 1
@@ -474,12 +525,14 @@ class EnhancedMazeGame:
             
             # Create doors with bounds checking
             if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room2.room_type == 'treasure':
+                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
                     dungeon[door_y][door_x] = 'D'
                     self.locked_doors.append((door_x, door_y))
                 else:
                     dungeon[door_y][door_x] = 'R'
+                    # Add door to BOTH rooms so both can control it
                     room1.doors.append((door_x, door_y))
+                    room2.doors.append((door_x, door_y))
 
 
     
@@ -502,6 +555,280 @@ class EnhancedMazeGame:
         return (len(self.maze[0]) - 2, len(self.maze) - 2)
     
     def generate_items_and_monsters(self):
+        """
+        Generate monster and item spawn data for each room.
+        
+        Instead of spawning all monsters/items immediately, we store the spawn data
+        in each room. Monsters and items are only instantiated when the player enters
+        the room for the first time. This improves performance and allows for proper
+        room-based door management.
+        """
+        # Get all floor positions organized by room type
+        treasure_room_positions = []
+        main_room_positions = []  # Store (x, y, room) tuples
+        key_room_positions = []
+        corridor_positions = []
+        
+        # Collect positions for treasure rooms
+        for room in self.treasure_rooms:
+            for y in range(room.top + 1, room.bottom - 1):
+                for x in range(room.left + 1, room.right - 1):
+                    if (self.maze[y][x] == ' ' and 
+                        (x, y) != self.start_pos and 
+                        (x, y) != self.end_pos):
+                        treasure_room_positions.append((x, y))
+        
+        # Collect positions for main rooms
+        for room in self.rooms:
+            room_positions = []
+            for y in range(room.top + 1, room.bottom - 1):
+                for x in range(room.left + 1, room.right - 1):
+                    if (self.maze[y][x] == ' ' and 
+                        (x, y) != self.start_pos and 
+                        (x, y) != self.end_pos):
+                        main_room_positions.append((x, y, room))
+                        room_positions.append((x, y))
+        
+        # Collect positions for shop rooms
+        shop_room_positions = []
+        if hasattr(self, 'shop_rooms'):
+            for room in self.shop_rooms:
+                for y in range(room.top + 1, room.bottom - 1):
+                    for x in range(room.left + 1, room.right - 1):
+                        if (self.maze[y][x] == ' ' and 
+                            (x, y) != self.start_pos and 
+                            (x, y) != self.end_pos):
+                            shop_room_positions.append((x, y))
+        
+        # Collect positions for secret rooms
+        secret_room_positions = []
+        if hasattr(self, 'secret_rooms'):
+            for room in self.secret_rooms:
+                for y in range(room.top + 1, room.bottom - 1):
+                    for x in range(room.left + 1, room.right - 1):
+                        if (self.maze[y][x] == ' ' and 
+                            (x, y) != self.start_pos and 
+                            (x, y) != self.end_pos):
+                            secret_room_positions.append((x, y))
+        
+        # Collect positions for super secret rooms
+        super_secret_room_positions = []
+        if hasattr(self, 'super_secret_rooms'):
+            for room in self.super_secret_rooms:
+                for y in range(room.top + 1, room.bottom - 1):
+                    for x in range(room.left + 1, room.right - 1):
+                        if (self.maze[y][x] == ' ' and 
+                            (x, y) != self.start_pos and 
+                            (x, y) != self.end_pos):
+                            super_secret_room_positions.append((x, y))
+        
+        # Collect corridor positions
+        for y in range(len(self.maze)):
+            for x in range(len(self.maze[0])):
+                if (self.maze[y][x] == ' ' and 
+                    (x, y) != self.start_pos and 
+                    (x, y) != self.end_pos):
+                    # Check if it's not in any room
+                    in_room = False
+                    all_special_rooms = self.rooms + self.treasure_rooms
+                    if hasattr(self, 'shop_rooms'):
+                        all_special_rooms += self.shop_rooms
+                    if hasattr(self, 'secret_rooms'):
+                        all_special_rooms += self.secret_rooms
+                    if hasattr(self, 'super_secret_rooms'):
+                        all_special_rooms += self.super_secret_rooms
+                    
+                    for room in all_special_rooms:
+                        if room.collidepoint(x, y):
+                            in_room = True
+                            break
+                    if not in_room:
+                        corridor_positions.append((x, y))
+        
+        # Track used positions to avoid overlaps
+        used_positions = set()
+        
+        # === STORE ITEM DATA IN ROOMS ===
+        
+        # Store items in treasure rooms
+        random.shuffle(treasure_room_positions)
+        treasure_item_count = len(treasure_room_positions) // TREASURE_ITEM_DENSITY
+        for i in range(min(treasure_item_count, len(treasure_room_positions))):
+            x, y = treasure_room_positions[i]
+            
+            # Find which treasure room this position belongs to
+            for room in self.treasure_rooms:
+                if room.collidepoint(x, y):
+                    item_types = [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD, ItemType.HEALTH_POTION]
+                    weights = [5, 3, 2, 2]
+                    item_type = random.choices(item_types, weights=weights)[0]
+                    
+                    value = 1
+                    if item_type == ItemType.TREASURE:
+                        value = random.randint(100, 300)
+                    elif item_type == ItemType.HEALTH_POTION:
+                        value = random.randint(40, 80)
+                    elif item_type == ItemType.SWORD:
+                        value = random.randint(3, 6)
+                    elif item_type == ItemType.SHIELD:
+                        value = random.randint(3, 5)
+                    
+                    room.item_data.append((x, y, item_type, value))
+                    used_positions.add((x, y))
+                    break
+        
+        # Store items in main rooms
+        available_main_positions = [(x, y, room) for x, y, room in main_room_positions if (x, y) not in used_positions]
+        random.shuffle(available_main_positions)
+        main_item_count = len(available_main_positions) // MAIN_ITEM_DENSITY
+        
+        for i in range(min(main_item_count, len(available_main_positions))):
+            x, y, room = available_main_positions[i]
+            
+            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD]
+            weights = [3, 3, 1, 1]
+            item_type = random.choices(item_types, weights=weights)[0]
+            
+            value = 1
+            if item_type == ItemType.TREASURE:
+                value = random.randint(20, 60)
+            elif item_type == ItemType.HEALTH_POTION:
+                value = random.randint(20, 40)
+            elif item_type == ItemType.SWORD:
+                value = random.randint(1, 2)
+            elif item_type == ItemType.SHIELD:
+                value = random.randint(1, 2)
+            
+            room.item_data.append((x, y, item_type, value))
+            used_positions.add((x, y))
+        
+        # Store items in shop rooms (keys)
+        if hasattr(self, 'shop_rooms') and len(shop_room_positions) > 0:
+            for room in self.shop_rooms:
+                # Place a key in shop room
+                if shop_room_positions:
+                    x, y = random.choice([pos for pos in shop_room_positions if pos not in used_positions])
+                    room.item_data.append((x, y, ItemType.KEY, 1))
+                    used_positions.add((x, y))
+        
+        # Store items in secret rooms (premium loot)
+        if hasattr(self, 'secret_rooms') and len(secret_room_positions) > 0:
+            for room in self.secret_rooms:
+                # Place high-value items in secret rooms
+                available_secret_positions = [pos for pos in secret_room_positions if pos not in used_positions]
+                for i in range(min(2, len(available_secret_positions))):
+                    x, y = available_secret_positions[i]
+                    item_types = [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD]
+                    weights = [3, 2, 2]
+                    item_type = random.choices(item_types, weights=weights)[0]
+                    
+                    value = 1
+                    if item_type == ItemType.TREASURE:
+                        value = random.randint(50, 150)
+                    elif item_type == ItemType.SWORD:
+                        value = random.randint(2, 4)
+                    elif item_type == ItemType.SHIELD:
+                        value = random.randint(2, 4)
+                    
+                    room.item_data.append((x, y, item_type, value))
+                    used_positions.add((x, y))
+        
+        # Store items in super secret rooms (ultra premium loot)
+        if hasattr(self, 'super_secret_rooms') and len(super_secret_room_positions) > 0:
+            for room in self.super_secret_rooms:
+                # Place ultra high-value items
+                available_super_positions = [pos for pos in super_secret_room_positions if pos not in used_positions]
+                for i in range(min(3, len(available_super_positions))):
+                    x, y = available_super_positions[i]
+                    item_types = [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD, ItemType.HEALTH_POTION]
+                    weights = [4, 3, 3, 2]
+                    item_type = random.choices(item_types, weights=weights)[0]
+                    
+                    value = 1
+                    if item_type == ItemType.TREASURE:
+                        value = random.randint(100, 300)
+                    elif item_type == ItemType.HEALTH_POTION:
+                        value = random.randint(50, 100)
+                    elif item_type == ItemType.SWORD:
+                        value = random.randint(4, 7)
+                    elif item_type == ItemType.SHIELD:
+                        value = random.randint(4, 6)
+                    
+                    room.item_data.append((x, y, item_type, value))
+                    used_positions.add((x, y))
+        
+        # Corridor items spawn immediately (not room-based)
+        random.shuffle(corridor_positions)
+        corridor_item_count = len(corridor_positions) // CORRIDOR_ITEM_DENSITY
+        for i in range(min(corridor_item_count, len(corridor_positions))):
+            x, y = corridor_positions[i]
+            
+            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION]
+            weights = [2, 1]
+            item_type = random.choices(item_types, weights=weights)[0]
+            
+            value = 1
+            if item_type == ItemType.TREASURE:
+                value = random.randint(5, 20)
+            elif item_type == ItemType.HEALTH_POTION:
+                value = random.randint(10, 25)
+            
+            self.items.append(Item(x, y, item_type, value))
+            used_positions.add((x, y))
+        
+        # === STORE MONSTER DATA IN ROOMS ===
+        
+        # Store monsters in treasure rooms (guardians)
+        available_treasure_positions = [pos for pos in treasure_room_positions if pos not in used_positions]
+        random.shuffle(available_treasure_positions)
+        
+        for i in range(min(len(available_treasure_positions)//TREASURE_MONSTER_DENSITY, len(self.treasure_rooms))):
+            x, y = available_treasure_positions[i]
+            
+            # Find which treasure room this position belongs to
+            for room in self.treasure_rooms:
+                if room.collidepoint(x, y):
+                    hp = random.randint(4, 6)
+                    room.monster_data.append((x, y, hp))
+                    used_positions.add((x, y))
+                    break
+        
+        # Store monsters in main rooms (SKIP starting room!)
+        available_main_positions = [(x, y, room) for x, y, room in main_room_positions if (x, y) not in used_positions]
+        random.shuffle(available_main_positions)
+        main_monster_count = len(available_main_positions) // MAIN_MONSTER_DENSITY
+        
+        for i in range(min(main_monster_count, len(available_main_positions))):
+            x, y, room = available_main_positions[i]
+            
+            # CRITICAL: Never spawn monsters in the starting room
+            if hasattr(room, 'is_starting_room') and room.is_starting_room:
+                continue
+            
+            hp = random.randint(2, 4)
+            room.monster_data.append((x, y, hp))
+            used_positions.add((x, y))
+        
+        # Corridor monsters spawn immediately (not room-based)
+        available_corridor_positions = [pos for pos in corridor_positions if pos not in used_positions]
+        random.shuffle(available_corridor_positions)
+        corridor_monster_count = len(available_corridor_positions) // CORRIDOR_MONSTER_DENSITY
+        
+        for i in range(min(corridor_monster_count, len(available_corridor_positions))):
+            x, y = available_corridor_positions[i]
+            hp = random.randint(1, 2)
+            self.monsters.append(Monster(x, y, hp))
+        
+        # Place keys in key rooms (corridor items, spawn immediately)
+        num_keys_needed = len(self.treasure_rooms)
+        random.shuffle(key_room_positions)
+        keys_placed = 0
+        for i in range(min(num_keys_needed, len(key_room_positions))):
+            x, y = key_room_positions[i]
+            self.items.append(Item(x, y, ItemType.KEY, 1))
+            keys_placed += 1
+        
+        # All doors start OPEN by default (will close when entering rooms with enemies)
         """
         Populate the dungeon with items and monsters using strategic placement.
         
@@ -551,148 +878,41 @@ class EnhancedMazeGame:
                     if not in_main_room and not in_treasure_room:
                         corridor_positions.append((x, y))
         
-        # Place keys in dedicated key rooms
-        key_positions = []
-        key_room_positions = []
+        # All doors start OPEN by default (will close when entering rooms with enemies)
+    
+    def load_room_content(self, room):
+        """
+        Load monsters and items for a room when the player first enters it.
         
-        # Get positions from key rooms
-        for room in self.key_rooms:
-            for y in range(room.top, room.bottom):
-                for x in range(room.left, room.right):
-                    if self.maze[y][x] == ' ':  # Floor space
-                        key_room_positions.append((x, y))
+        Args:
+            room: The Room object being entered
+        """
+        if room.visited:
+            return  # Already loaded
         
-        # Place multiple keys per key room (1-2 keys each)
-        num_keys_needed = len(self.treasure_rooms)  # Still need keys for treasure rooms
-        random.shuffle(key_room_positions)
+        room.visited = True
         
-        keys_placed = 0
-        for i in range(min(num_keys_needed, len(key_room_positions))):
-            x, y = key_room_positions[i]
-            self.items.append(Item(x, y, ItemType.KEY, 1))
-            key_positions.append((x, y))
-            keys_placed += 1
+        # Spawn monsters from stored data
+        for x, y, hp in room.monster_data:
+            monster = Monster(x, y, hp)
+            self.monsters.append(monster)
+            room.monsters_in_room.append(monster)
         
-        # Place amazing loot in treasure rooms (much less dense)
-        random.shuffle(treasure_room_positions)
-        for x, y in treasure_room_positions[:len(treasure_room_positions)//TREASURE_ITEM_DENSITY]:
-            # Treasure rooms have premium loot
-            item_types = [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD, ItemType.HEALTH_POTION]
-            weights = [5, 3, 2, 2]  # Favor treasure
-            item_type = random.choices(item_types, weights=weights)[0]
-            
-            value = 1
-            if item_type == ItemType.TREASURE:
-                value = random.randint(100, 300)  # Very valuable treasure
-            elif item_type == ItemType.HEALTH_POTION:
-                value = random.randint(40, 80)
-            elif item_type == ItemType.SWORD:
-                value = random.randint(3, 6)  # Powerful weapons
-            elif item_type == ItemType.SHIELD:
-                value = random.randint(3, 5)  # Strong armor
-            
-            self.items.append(Item(x, y, item_type, value))
+        # Spawn items from stored data
+        for x, y, item_type, value in room.item_data:
+            item = Item(x, y, item_type, value)
+            self.items.append(item)
         
-        # Place regular items in main progression rooms
-        used_positions = set((item.x, item.y) for item in self.items)
-        available_main_positions = [(x, y) for x, y, _ in main_room_positions if (x, y) not in used_positions]
-        random.shuffle(available_main_positions)
-        
-        # Moderate loot in main rooms (reduced density)
-        main_item_count = len(available_main_positions) // MAIN_ITEM_DENSITY
-        for i in range(min(main_item_count, len(available_main_positions))):
-            x, y = available_main_positions[i]
-            
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD]
-            weights = [3, 3, 1, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
-            value = 1
-            if item_type == ItemType.TREASURE:
-                value = random.randint(20, 60)
-            elif item_type == ItemType.HEALTH_POTION:
-                value = random.randint(20, 40)
-            elif item_type == ItemType.SWORD:
-                value = random.randint(1, 2)
-            elif item_type == ItemType.SHIELD:
-                value = random.randint(1, 2)
-            
-            self.items.append(Item(x, y, item_type, value))
-            used_positions.add((x, y))
-        
-        # Place basic items in corridors (very sparse)
-        random.shuffle(corridor_positions)
-        corridor_item_count = len(corridor_positions) // CORRIDOR_ITEM_DENSITY
-        for i in range(min(corridor_item_count, len(corridor_positions))):
-            x, y = corridor_positions[i]
-            
-            # Basic items only
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION]
-            weights = [2, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
-            value = 1
-            if item_type == ItemType.TREASURE:
-                value = random.randint(5, 20)
-            elif item_type == ItemType.HEALTH_POTION:
-                value = random.randint(10, 25)
-            
-            self.items.append(Item(x, y, item_type, value))
-            used_positions.add((x, y))
-        
-        # Place bonus items in key rooms (in addition to keys)
-        available_key_positions = [pos for pos in key_room_positions if pos not in used_positions]
-        random.shuffle(available_key_positions)
-        key_item_count = len(available_key_positions) // KEY_ITEM_DENSITY
-        for i in range(min(key_item_count, len(available_key_positions))):
-            x, y = available_key_positions[i]
-            
-            # Good quality items in key rooms
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD]
-            weights = [4, 2, 1, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
-            value = 1
-            if item_type == ItemType.TREASURE:
-                value = random.randint(30, 80)  # Better treasure than main rooms
-            elif item_type == ItemType.HEALTH_POTION:
-                value = random.randint(25, 50)
-            elif item_type == ItemType.SWORD:
-                value = random.randint(1, 3)
-            elif item_type == ItemType.SHIELD:
-                value = random.randint(1, 3)
-            
-            self.items.append(Item(x, y, item_type, value))
-            used_positions.add((x, y))
-        
-        # Place monsters strategically
-        # Strong monsters in treasure rooms (guardians)
-        available_treasure_positions = [pos for pos in treasure_room_positions if pos not in used_positions]
-        random.shuffle(available_treasure_positions)
-        for i in range(min(len(available_treasure_positions)//TREASURE_MONSTER_DENSITY, len(self.treasure_rooms))):
-            x, y = available_treasure_positions[i]
-            hp = random.randint(4, 6)  # Guardian monsters
-            self.monsters.append(Monster(x, y, hp))
-            used_positions.add((x, y))
-        
-        # Moderate monsters in main rooms
-        available_main_positions = [(x, y) for x, y, _ in main_room_positions if (x, y) not in used_positions]
-        random.shuffle(available_main_positions)
-        main_monster_count = len(available_main_positions) // MAIN_MONSTER_DENSITY
-        for i in range(min(main_monster_count, len(available_main_positions))):
-            x, y = available_main_positions[i]
-            hp = random.randint(2, 4)
-            self.monsters.append(Monster(x, y, hp))
-            used_positions.add((x, y))
-        
-        # Weak monsters in corridors
-        available_corridor_positions = [pos for pos in corridor_positions if pos not in used_positions]
-        random.shuffle(available_corridor_positions)
-        corridor_monster_count = len(available_corridor_positions) // CORRIDOR_MONSTER_DENSITY
-        for i in range(min(corridor_monster_count, len(available_corridor_positions))):
-            x, y = available_corridor_positions[i]
-            hp = random.randint(1, 2)
-            self.monsters.append(Monster(x, y, hp))
+        # Close doors if room has monsters
+        if len(room.monster_data) > 0:
+            room.doors_closed = True
+            for door_x, door_y in room.doors:
+                if 0 <= door_y < len(self.maze) and 0 <= door_x < len(self.maze[0]):
+                    self.maze[door_y][door_x] = 'R'  # Close door
+        else:
+            # Room is empty, mark as cleared
+            room.cleared = True
+            room.doors_closed = False
     
     # ---- GAME LOOP & INPUT METHODS ----
     
@@ -723,27 +943,37 @@ class EnhancedMazeGame:
                 
                 elif event.key == pygame.K_r and (self.game_won or self.game_over):
                     self.generate_new_maze()
+                else:
+                    # Key presses still handled for instant response
+                    pass
         
-        # Continuous movement - check held keys with timing
+        # Continuous smooth movement - check held keys every frame
         if not self.game_over:
-            current_time = pygame.time.get_ticks()
+            keys = pygame.key.get_pressed()
             
-            if current_time - self.last_move_time > self.move_delay:
-                keys = pygame.key.get_pressed()
-                moved = False
-                
-                if keys[pygame.K_w] or keys[pygame.K_UP]:
-                    moved = self.player.move(0, -1, self.maze, self)
-                elif keys[pygame.K_s] or keys[pygame.K_DOWN]:
-                    moved = self.player.move(0, 1, self.maze, self)
-                elif keys[pygame.K_a] or keys[pygame.K_LEFT]:
-                    moved = self.player.move(-1, 0, self.maze, self)
-                elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-                    moved = self.player.move(1, 0, self.maze, self)
-                
-                if moved:
-                    self.last_move_time = current_time
-                    self.process_player_action()
+            # Calculate movement direction
+            dx = 0
+            dy = 0
+            
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
+                dy -= 1
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+                dy += 1
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+                dx -= 1
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+                dx += 1
+            
+            # Set player velocity based on input
+            self.player.set_velocity(dx, dy)
+            
+            # Update player position with collision detection
+            old_x, old_y = self.player.x, self.player.y
+            self.player.update_position(self.maze, self)
+            
+            # Check if player moved to a new grid cell
+            if (self.player.x, self.player.y) != (old_x, old_y):
+                self.process_player_action()
         
         return True
     
@@ -813,14 +1043,51 @@ class EnhancedMazeGame:
                     break
         
         # Check key rooms
-        if not current_room and hasattr(self, 'key_rooms'):
-            for room in self.key_rooms:
+        if not current_room and hasattr(self, 'shop_rooms'):
+            for room in self.shop_rooms:
+                if room.collidepoint(x, y):
+                    current_room = room
+                    break
+        
+        # Check secret rooms
+        if not current_room and hasattr(self, 'secret_rooms'):
+            for room in self.secret_rooms:
+                if room.collidepoint(x, y):
+                    current_room = room
+                    break
+        
+        # Check super secret rooms
+        if not current_room and hasattr(self, 'super_secret_rooms'):
+            for room in self.super_secret_rooms:
                 if room.collidepoint(x, y):
                     current_room = room
                     break
         
         # If in a room, reveal all floor tiles in that room AND its doors
         if current_room:
+            # Clear all previously visited cells - only show current room
+            self.player.visited_cells.clear()
+            
+            # Load room content if this is the first visit
+            if not current_room.visited:
+                self.load_room_content(current_room)
+            
+            # Check if player just entered this room (came from outside)
+            # Set entry door if player's previous position was a door or corridor
+            prev_x, prev_y = self.player.prev_x, self.player.prev_y
+            if not current_room.collidepoint(prev_x, prev_y):
+                # Player entered from outside the room
+                # Find which door they came through (closest door to previous position)
+                min_dist = float('inf')
+                entry_door = None
+                for door_x, door_y in current_room.doors:
+                    dist = abs(door_x - prev_x) + abs(door_y - prev_y)
+                    if dist < min_dist:
+                        min_dist = dist
+                        entry_door = (door_x, door_y)
+                if entry_door and min_dist <= 1:  # Must be adjacent
+                    current_room.entry_door = entry_door
+            
             # Reveal room interior
             for room_y in range(current_room.top, current_room.bottom):
                 for room_x in range(current_room.left, current_room.right):
@@ -829,21 +1096,36 @@ class EnhancedMazeGame:
                         self.maze[room_y][room_x] != '#'):  # Only reveal floor tiles
                         self.player.visited_cells.add((room_x, room_y))
             
-            # Reveal all doors of this room
+            # Reveal only doors that are directly adjacent to this room's boundaries
             for door_x, door_y in current_room.doors:
                 if (0 <= door_x < len(self.maze[0]) and 
                     0 <= door_y < len(self.maze)):
-                    self.player.visited_cells.add((door_x, door_y))
+                    # Check if door is actually adjacent to THIS room's boundaries
+                    is_adjacent = (
+                        (door_x == current_room.left - 1 and current_room.top <= door_y < current_room.bottom) or  # Left edge
+                        (door_x == current_room.right and current_room.top <= door_y < current_room.bottom) or      # Right edge
+                        (door_y == current_room.top - 1 and current_room.left <= door_x < current_room.right) or    # Top edge
+                        (door_y == current_room.bottom and current_room.left <= door_x < current_room.right)         # Bottom edge
+                    )
+                    if is_adjacent:
+                        self.player.visited_cells.add((door_x, door_y))
         else:
             # If not in a room, we're in a corridor - reveal nearby corridor tiles
+            # BUT DO NOT reveal doors (R or O) - only walls and floors
+            
+            # Clear previous visibility - only show current corridor area
+            self.player.visited_cells.clear()
+            
             for dy in range(-2, 3):  # Reveal 5x5 area around player in corridors
                 for dx in range(-2, 3):
                     corridor_x = x + dx
                     corridor_y = y + dy
                     if (0 <= corridor_x < len(self.maze[0]) and 
-                        0 <= corridor_y < len(self.maze) and
-                        self.maze[corridor_y][corridor_x] != '#'):  # Don't reveal walls
-                        self.player.visited_cells.add((corridor_x, corridor_y))
+                        0 <= corridor_y < len(self.maze)):
+                        cell = self.maze[corridor_y][corridor_x]
+                        # Don't reveal walls or doors in corridors
+                        if cell not in ['#', 'R', 'O', 'D']:
+                            self.player.visited_cells.add((corridor_x, corridor_y))
     
     def collect_item(self, item: Item):
         """Collect an item"""
@@ -884,6 +1166,8 @@ class EnhancedMazeGame:
         if monster.hp <= 0:
             monster.alive = False
             self.player.score += 25
+            # Update doors immediately when monster dies
+            self._update_room_doors()
         else:
             # Monster attacks back
             monster_damage = random.randint(3, 8)
@@ -903,37 +1187,65 @@ class EnhancedMazeGame:
         
         This creates organic dungeon life without overwhelming challenge.
         """
+        import math
         current_time = pygame.time.get_ticks()
         
         for monster in self.monsters:
             if not monster.alive:
                 continue
             
-            # Simple random movement
+            # Simple random movement with smooth interpolation
             if current_time - monster.last_move_time > monster.move_delay:
                 directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
                 dx, dy = random.choice(directions)
                 
-                new_x = monster.x + dx
-                new_y = monster.y + dy
+                new_grid_x = monster.x + dx
+                new_grid_y = monster.y + dy
                 
-                # Check if move is valid
-                if (0 <= new_y < len(self.maze) and 
-                    0 <= new_x < len(self.maze[0]) and 
-                    self.maze[new_y][new_x] not in ['#', 'D', 'R']):  # Can't pass through walls or doors
+                # Monsters cannot leave rooms - blocked by walls and ALL door types
+                if (0 <= new_grid_y < len(self.maze) and 
+                    0 <= new_grid_x < len(self.maze[0]) and 
+                    self.maze[new_grid_y][new_grid_x] not in ['#', 'D', 'R', 'O']):  # Blocked by walls and all doors
                     
                     # Check if position is not occupied by another monster
-                    occupied = any(m.x == new_x and m.y == new_y and m.alive 
+                    occupied = any(m.x == new_grid_x and m.y == new_grid_y and m.alive 
                                  for m in self.monsters if m != monster)
                     
                     if not occupied:
-                        monster.x = new_x
-                        monster.y = new_y
+                        # Set velocity towards target
+                        monster.vel_x = dx * monster.speed
+                        monster.vel_y = dy * monster.speed
                 
                 monster.last_move_time = current_time
-        
-        # Update room door states based on monster presence
-        self._update_room_doors()
+            
+            # Update smooth position every frame
+            if monster.vel_x != 0 or monster.vel_y != 0:
+                # Move towards target grid position
+                target_x = monster.x + (1 if monster.vel_x > 0 else -1 if monster.vel_x < 0 else 0)
+                target_y = monster.y + (1 if monster.vel_y > 0 else -1 if monster.vel_y < 0 else 0)
+                
+                # Update real position
+                monster.real_x += monster.vel_x
+                monster.real_y += monster.vel_y
+                
+                # Check if reached target grid cell
+                if monster.vel_x > 0 and monster.real_x >= target_x:
+                    monster.real_x = float(target_x)
+                    monster.x = target_x
+                    monster.vel_x = 0
+                elif monster.vel_x < 0 and monster.real_x <= target_x:
+                    monster.real_x = float(target_x)
+                    monster.x = target_x
+                    monster.vel_x = 0
+                
+                if monster.vel_y > 0 and monster.real_y >= target_y:
+                    monster.real_y = float(target_y)
+                    monster.y = target_y
+                    monster.vel_y = 0
+                elif monster.vel_y < 0 and monster.real_y <= target_y:
+                    monster.real_y = float(target_y)
+                    monster.y = target_y
+                    monster.vel_y = 0
     
     def _update_room_doors(self):
         """Update door states based on whether rooms have living monsters."""
@@ -944,34 +1256,69 @@ class EnhancedMazeGame:
             all_rooms.extend(self.rooms)
         if hasattr(self, 'treasure_rooms'):
             all_rooms.extend(self.treasure_rooms)
-        if hasattr(self, 'key_rooms'):
-            all_rooms.extend(self.key_rooms)
+        if hasattr(self, 'shop_rooms'):
+            all_rooms.extend(self.shop_rooms)
+        if hasattr(self, 'secret_rooms'):
+            all_rooms.extend(self.secret_rooms)
+        if hasattr(self, 'super_secret_rooms'):
+            all_rooms.extend(self.super_secret_rooms)
         
+        # First pass: count monsters in each room
         for room in all_rooms:
+            # Only update rooms that have been visited
+            if not room.visited:
+                continue
+                
             # Count living monsters in this room
+            # Only count monsters that are strictly inside the room (use pygame rect bounds)
             monsters_in_room = []
             for monster in self.monsters:
-                if monster.alive and room.collidepoint(monster.x, monster.y):
+                if not monster.alive:
+                    continue
+                
+                # Use strict room bounds (monsters must be inside, not on doors)
+                if (room.left <= monster.x < room.right and 
+                    room.top <= monster.y < room.bottom):
                     monsters_in_room.append(monster)
             
             room.monsters_in_room = monsters_in_room
             
-            # Update door state
-            has_living_monsters = len(monsters_in_room) > 0
+            # Mark room as cleared if no monsters remain
+            if len(monsters_in_room) == 0 and not room.cleared:
+                room.cleared = True
             
-            # If room state changed, update door visuals
-            if room.doors_closed != has_living_monsters:
-                room.doors_closed = has_living_monsters
+            room.doors_closed = len(monsters_in_room) > 0
+        
+        # Second pass: update door visuals
+        # A door should be closed if ANY connected room has monsters
+        processed_doors = set()
+        
+        for room in all_rooms:
+            # Only process doors for visited rooms
+            if not room.visited:
+                continue
                 
-                # Update maze representation
-                for door_x, door_y in room.doors:
-                    if 0 <= door_y < len(self.maze) and 0 <= door_x < len(self.maze[0]):
-                        if has_living_monsters:
-                            # Keep as room door
-                            self.maze[door_y][door_x] = 'R'
-                        else:
-                            # Open the door (but keep it visible)
-                            self.maze[door_y][door_x] = 'O'  # O = Open door
+            for door_x, door_y in room.doors:
+                if (door_x, door_y) in processed_doors:
+                    continue  # Skip if we already processed this door
+                
+                processed_doors.add((door_x, door_y))
+                
+                if 0 <= door_y < len(self.maze) and 0 <= door_x < len(self.maze[0]):
+                    # Check if ANY room containing this door has monsters
+                    door_should_be_closed = False
+                    for check_room in all_rooms:
+                        if (door_x, door_y) in check_room.doors:
+                            # Only check visited rooms
+                            if check_room.visited and check_room.doors_closed:
+                                door_should_be_closed = True
+                                break
+                    
+                    # Update door state
+                    if door_should_be_closed:
+                        self.maze[door_y][door_x] = 'R'
+                    else:
+                        self.maze[door_y][door_x] = 'O'
     
     def update(self):
         """Update game state"""
@@ -985,9 +1332,10 @@ class EnhancedMazeGame:
                 self.player.heal_flash -= 1
         
         self.camera.update(
-            self.player.x, self.player.y,
+            self.player.real_x, self.player.real_y,
             len(self.maze[0]), len(self.maze),
-            self.cell_size
+            self.cell_size,
+            current_room=self.current_room
         )
     
     # ---- RENDERING METHODS ----
@@ -1398,8 +1746,8 @@ class EnhancedMazeGame:
             if (monster.alive and 
                 (monster.x, monster.y) in self.player.visited_cells):
                 
-                screen_x = monster.x * self.cell_size - self.camera.x
-                screen_y = monster.y * self.cell_size - self.camera.y
+                screen_x = monster.real_x * self.cell_size - self.camera.x
+                screen_y = monster.real_y * self.cell_size - self.camera.y
                 center_x = screen_x + self.cell_size // 2
                 center_y = screen_y + self.cell_size // 2
                 
@@ -1549,8 +1897,8 @@ class EnhancedMazeGame:
                                    pygame.Rect(bar_x, bar_y, health_width, bar_height))
         
         # Draw player with enhanced graphics
-        player_screen_x = self.player.x * self.cell_size - self.camera.x
-        player_screen_y = self.player.y * self.cell_size - self.camera.y
+        player_screen_x = self.player.real_x * self.cell_size - self.camera.x
+        player_screen_y = self.player.real_y * self.cell_size - self.camera.y
         center_x = player_screen_x + self.cell_size // 2
         center_y = player_screen_y + self.cell_size // 2
         
@@ -1591,7 +1939,7 @@ class EnhancedMazeGame:
                 self.screen.blit(glow_surface, (center_x - glow_radius, center_y - glow_radius))
     
     def draw_minimap(self):
-        """Draw enhanced minimap"""
+        """Draw enhanced minimap with room exploration tracking"""
         # Position minimap within the UI area, not overlapping
         minimap_x = WINDOW_WIDTH - self.ui_width + 10  # Inside UI area
         minimap_y = 40  # Leave space for title
@@ -1626,7 +1974,130 @@ class EnhancedMazeGame:
         offset_x = (self.minimap_size - maze_pixel_width) // 2
         offset_y = (self.minimap_size - maze_pixel_height) // 2
         
-        # Draw maze
+        # First, draw all explored rooms with a distinct color
+        all_rooms = []
+        if hasattr(self, 'rooms'):
+            all_rooms.extend(self.rooms)
+        if hasattr(self, 'treasure_rooms'):
+            all_rooms.extend(self.treasure_rooms)
+        if hasattr(self, 'shop_rooms'):
+            all_rooms.extend(self.shop_rooms)
+        if hasattr(self, 'secret_rooms'):
+            all_rooms.extend(self.secret_rooms)
+        if hasattr(self, 'super_secret_rooms'):
+            all_rooms.extend(self.super_secret_rooms)
+        
+        # Collect adjacent unexplored rooms (rooms connected to visited rooms via doors)
+        adjacent_unexplored_rooms = set()
+        for room in all_rooms:
+            if room.visited:
+                # Check all doors of this visited room
+                for door_x, door_y in room.doors:
+                    # Find the room on the other side of this door
+                    for other_room in all_rooms:
+                        if not other_room.visited and (door_x, door_y) in other_room.doors:
+                            adjacent_unexplored_rooms.add(other_room)
+        
+        # Draw adjacent unexplored rooms in grey first
+        for room in adjacent_unexplored_rooms:
+            room_color = (50, 50, 50)  # Dark grey for unexplored adjacent rooms
+            
+            # Draw the room rectangle
+            mini_left = int(offset_x + room.left * scale)
+            mini_top = int(offset_y + room.top * scale)
+            mini_width = int((room.right - room.left) * scale)
+            mini_height = int((room.bottom - room.top) * scale)
+            
+            room_rect = pygame.Rect(mini_left, mini_top, mini_width, mini_height)
+            minimap_surface.fill(room_color, room_rect)
+            
+            # Add border to make rooms distinct (darker border for unexplored)
+            pygame.draw.rect(minimap_surface, COLORS['DARK_GRAY'], room_rect, 1)
+        
+        # Draw explored rooms as simple quadrangles (all same color)
+        for room in all_rooms:
+            if room.visited:
+                # All visited rooms are same grey color - icons will differentiate them
+                room_color = (80, 80, 80)  # Grey for all rooms
+                
+                # Draw the room rectangle
+                mini_left = int(offset_x + room.left * scale)
+                mini_top = int(offset_y + room.top * scale)
+                mini_width = int((room.right - room.left) * scale)
+                mini_height = int((room.bottom - room.top) * scale)
+                
+                room_rect = pygame.Rect(mini_left, mini_top, mini_width, mini_height)
+                minimap_surface.fill(room_color, room_rect)
+                
+                # Add border to make rooms distinct
+                pygame.draw.rect(minimap_surface, COLORS['WHITE'], room_rect, 1)
+                
+                # Draw icon for special room types only (normal rooms have no icon)
+                center_x = mini_left + mini_width // 2
+                center_y = mini_top + mini_height // 2
+                icon_size = max(3, int(min(mini_width, mini_height) * 0.4))
+                
+                if room.room_type == 'boss':
+                    # Draw skull icon for boss
+                    pygame.draw.circle(minimap_surface, COLORS['RED'], (center_x, center_y), icon_size)
+                    # Eyes
+                    eye_offset = max(1, icon_size // 3)
+                    pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
+                                     (center_x - eye_offset, center_y - 1), max(1, icon_size // 4))
+                    pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
+                                     (center_x + eye_offset, center_y - 1), max(1, icon_size // 4))
+                    
+                elif room.room_type == 'treasure':
+                    # Draw chest icon (yellow rectangle)
+                    chest_width = icon_size * 2
+                    chest_height = int(icon_size * 1.5)
+                    chest_rect = pygame.Rect(center_x - chest_width // 2, center_y - chest_height // 2,
+                                            chest_width, chest_height)
+                    pygame.draw.rect(minimap_surface, COLORS['GOLD'], chest_rect)
+                    pygame.draw.rect(minimap_surface, COLORS['YELLOW'], chest_rect, 1)
+                    
+                elif room.room_type == 'shop':
+                    # Draw dollar sign for shop
+                    pygame.draw.circle(minimap_surface, COLORS['GREEN'], (center_x, center_y), icon_size)
+                    # Simple $ shape (vertical line with horizontal bars)
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x, center_y - icon_size),
+                                   (center_x, center_y + icon_size), 2)
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x - icon_size//2, center_y - icon_size//2),
+                                   (center_x + icon_size//2, center_y - icon_size//2), 2)
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x - icon_size//2, center_y + icon_size//2),
+                                   (center_x + icon_size//2, center_y + icon_size//2), 2)
+                    
+                elif room.room_type == 'secret':
+                    # Draw question mark for secret room
+                    pygame.draw.circle(minimap_surface, COLORS['PURPLE'], (center_x, center_y), icon_size)
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size - 1, 1)
+                    
+                elif room.room_type == 'super_secret':
+                    # Draw double question mark / star for super secret
+                    pygame.draw.circle(minimap_surface, COLORS['CYAN'], (center_x, center_y), icon_size)
+                    # Draw a simple star/sparkle
+                    sparkle_size = icon_size - 1
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x, center_y - sparkle_size),
+                                   (center_x, center_y + sparkle_size), 2)
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x - sparkle_size, center_y),
+                                   (center_x + sparkle_size, center_y), 2)
+                # Normal rooms ('start', 'normal', etc.) have no icon
+        
+        # Draw icons on adjacent unexplored rooms too (but dimmer/simpler)
+        for room in adjacent_unexplored_rooms:
+            mini_left = int(offset_x + room.left * scale)
+            mini_top = int(offset_y + room.top * scale)
+            mini_width = int((room.right - room.left) * scale)
+            mini_height = int((room.bottom - room.top) * scale)
+            
+            # Unexplored adjacent rooms are just grey rectangles (no icon needed)
+        
+        # Draw maze details on top (walls, doors, special markers)
         for y, row in enumerate(self.maze):
             for x, cell in enumerate(row):
                 mini_x = int(offset_x + x * scale)
@@ -1635,51 +2106,81 @@ class EnhancedMazeGame:
                 
                 mini_rect = pygame.Rect(mini_x, mini_y, mini_size, mini_size)
                 
-                if (x, y) in self.player.visited_cells:
-                    if cell == '#':
-                        minimap_surface.fill(COLORS['LIGHT_GRAY'], mini_rect)
-                    elif cell == 'D':
+                # Only draw specific features (doors, markers)
+                if cell == 'D':  # Locked doors - show if adjacent to visited room or unexplored adjacent room
+                    # Check if any adjacent room is visited or is an unexplored adjacent room
+                    show_door = False
+                    for room in all_rooms:
+                        if (room.visited or room in adjacent_unexplored_rooms) and (x, y) in room.doors:
+                            show_door = True
+                            break
+                    
+                    if show_door:
                         minimap_surface.fill(COLORS['DARK_BROWN'], mini_rect)
-                        # Make doors more visible on minimap with border
                         pygame.draw.rect(minimap_surface, COLORS['GOLD'], mini_rect, 1)
-                    elif cell == 'R':  # Closed room door
+                
+                elif cell == 'R':  # Closed room door - show if adjacent to visited room or unexplored adjacent room
+                    # Check if any adjacent room is visited or is an unexplored adjacent room
+                    show_door = False
+                    for room in all_rooms:
+                        if (room.visited or room in adjacent_unexplored_rooms) and (x, y) in room.doors:
+                            show_door = True
+                            break
+                    
+                    if show_door:
                         minimap_surface.fill(COLORS['RED'], mini_rect)
                         pygame.draw.rect(minimap_surface, COLORS['DARK_BROWN'], mini_rect, 1)
-                    elif cell == 'O':  # Open room door
+                
+                elif cell == 'O':  # Open room door - show if adjacent to visited room or unexplored adjacent room
+                    # Check if any adjacent room is visited or is an unexplored adjacent room
+                    show_door = False
+                    for room in all_rooms:
+                        if (room.visited or room in adjacent_unexplored_rooms) and (x, y) in room.doors:
+                            show_door = True
+                            break
+                    
+                    if show_door:
                         minimap_surface.fill(COLORS['GREEN'], mini_rect)
                         pygame.draw.rect(minimap_surface, COLORS['BROWN'], mini_rect, 1)
-                    elif cell == 'S':
-                        minimap_surface.fill(START_COLOR, mini_rect)
-                    elif cell == 'E':
-                        minimap_surface.fill(END_COLOR, mini_rect)
-                    else:
-                        minimap_surface.fill(COLORS['WHITE'], mini_rect)
-                else:
-                    # Show unexplored areas as dark
-                    if cell != '#':  # Only show floor areas as black
-                        minimap_surface.fill(COLORS['DARK_GRAY'], mini_rect)
+                
+                elif cell == 'S':  # Start marker
+                    minimap_surface.fill(START_COLOR, mini_rect)
+                
+                elif cell == 'E':  # End marker - only show if in visited room
+                    for room in all_rooms:
+                        if room.visited and room.collidepoint(x, y):
+                            minimap_surface.fill(END_COLOR, mini_rect)
+                            break
         
-        # Draw items on minimap
+        # Draw items on minimap (only in visited rooms)
         for item in self.items:
-            if not item.collected and (item.x, item.y) in self.player.visited_cells:
-                mini_x = int(offset_x + item.x * scale)
-                mini_y = int(offset_y + item.y * scale)
-                item_size = max(2, int(scale))
-                minimap_surface.fill(TREASURE_COLOR, 
-                                   pygame.Rect(mini_x, mini_y, item_size, item_size))
+            if not item.collected:
+                # Check if item is in a visited room
+                for room in all_rooms:
+                    if room.visited and room.collidepoint(item.x, item.y):
+                        mini_x = int(offset_x + item.x * scale)
+                        mini_y = int(offset_y + item.y * scale)
+                        item_size = max(2, int(scale))
+                        minimap_surface.fill(TREASURE_COLOR, 
+                                           pygame.Rect(mini_x, mini_y, item_size, item_size))
+                        break
         
-        # Draw monsters on minimap
+        # Draw monsters on minimap (only in visited rooms)
         for monster in self.monsters:
-            if monster.alive and (monster.x, monster.y) in self.player.visited_cells:
-                mini_x = int(offset_x + monster.x * scale)
-                mini_y = int(offset_y + monster.y * scale)
-                monster_size = max(2, int(scale))
-                minimap_surface.fill(MONSTER_COLOR, 
-                                   pygame.Rect(mini_x, mini_y, monster_size, monster_size))
+            if monster.alive:
+                # Check if monster is in a visited room
+                for room in all_rooms:
+                    if room.visited and room.collidepoint(monster.x, monster.y):
+                        mini_x = int(offset_x + monster.real_x * scale)
+                        mini_y = int(offset_y + monster.real_y * scale)
+                        monster_size = max(2, int(scale))
+                        minimap_surface.fill(MONSTER_COLOR, 
+                                           pygame.Rect(mini_x, mini_y, monster_size, monster_size))
+                        break
         
         # Draw player (make it more visible)
-        player_mini_x = int(offset_x + self.player.x * scale)
-        player_mini_y = int(offset_y + self.player.y * scale)
+        player_mini_x = int(offset_x + self.player.real_x * scale)
+        player_mini_y = int(offset_y + self.player.real_y * scale)
         player_size = max(4, int(scale * 2))
         # Draw a bright yellow square for the player
         player_rect = pygame.Rect(player_mini_x - player_size//2, player_mini_y - player_size//2, 
