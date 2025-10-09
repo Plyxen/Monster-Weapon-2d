@@ -940,7 +940,18 @@ class EnhancedMazeGame:
         room.visited = True
         
         # Spawn monsters from stored data (ignore old HP data, use new types)
+        # Skip monsters that are too close to the player
         for x, y, _ in room.monster_data:
+            # Calculate distance from player
+            import math
+            dx = x - self.player.x
+            dy = y - self.player.y
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            # Skip this monster if it's too close to the player
+            if distance < MIN_ENEMY_SPAWN_DISTANCE:
+                continue
+            
             # Create random enemy type for variety
             monster = Monster(x, y)
             monster.spawn_room = room  # Lock monster to this room
@@ -2330,57 +2341,77 @@ class EnhancedMazeGame:
                 # Draw icon for special room types only (normal rooms have no icon)
                 center_x = mini_left + mini_width // 2
                 center_y = mini_top + mini_height // 2
-                icon_size = max(3, int(min(mini_width, mini_height) * 0.4))
+                # Make icons bigger and clearer
+                icon_size = max(6, int(min(mini_width, mini_height) * 0.7))
                 
                 if room.room_type == 'boss':
-                    # Draw skull icon for boss
+                    # Draw large red skull icon for boss - VERY VISIBLE
+                    # Main skull shape (large red circle)
                     pygame.draw.circle(minimap_surface, COLORS['RED'], (center_x, center_y), icon_size)
-                    # Eyes
-                    eye_offset = max(1, icon_size // 3)
+                    # White border to make it stand out
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
+                    # Large black eyes
+                    eye_size = max(2, icon_size // 3)
+                    eye_offset = max(2, icon_size // 2)
                     pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
-                                     (center_x - eye_offset, center_y - 1), max(1, icon_size // 4))
+                                     (center_x - eye_offset, center_y), eye_size)
                     pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
-                                     (center_x + eye_offset, center_y - 1), max(1, icon_size // 4))
+                                     (center_x + eye_offset, center_y), eye_size)
                     
                 elif room.room_type == 'treasure':
-                    # Draw chest icon (yellow rectangle)
-                    chest_width = icon_size * 2
-                    chest_height = int(icon_size * 1.5)
-                    chest_rect = pygame.Rect(center_x - chest_width // 2, center_y - chest_height // 2,
-                                            chest_width, chest_height)
-                    pygame.draw.rect(minimap_surface, COLORS['GOLD'], chest_rect)
-                    pygame.draw.rect(minimap_surface, COLORS['YELLOW'], chest_rect, 1)
+                    # Draw large gold crown icon for treasure room
+                    crown_color = COLORS['GOLD']
+                    # Large filled circle background
+                    pygame.draw.circle(minimap_surface, crown_color, (center_x, center_y), icon_size)
+                    # White border
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
+                    # Simple crown shape on top
+                    crown_size = icon_size // 2
+                    pygame.draw.rect(minimap_surface, COLORS['YELLOW'],
+                                   pygame.Rect(center_x - crown_size, center_y - 1,
+                                             crown_size * 2, crown_size))
                     
                 elif room.room_type == 'shop':
-                    # Draw dollar sign for shop
+                    # Draw large green circle with white $ symbol for shop
                     pygame.draw.circle(minimap_surface, COLORS['GREEN'], (center_x, center_y), icon_size)
-                    # Simple $ shape (vertical line with horizontal bars)
+                    # White border
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
+                    # Simple $ sign (vertical line with two horizontal lines)
                     pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x, center_y - icon_size),
-                                   (center_x, center_y + icon_size), 2)
+                                   (center_x, center_y - icon_size + 2),
+                                   (center_x, center_y + icon_size - 2), 3)
                     pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - icon_size//2, center_y - icon_size//2),
-                                   (center_x + icon_size//2, center_y - icon_size//2), 2)
+                                   (center_x - icon_size // 2, center_y - icon_size // 3),
+                                   (center_x + icon_size // 2, center_y - icon_size // 3), 2)
                     pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - icon_size//2, center_y + icon_size//2),
-                                   (center_x + icon_size//2, center_y + icon_size//2), 2)
+                                   (center_x - icon_size // 2, center_y + icon_size // 3),
+                                   (center_x + icon_size // 2, center_y + icon_size // 3), 2)
                     
                 elif room.room_type == 'secret':
-                    # Draw question mark for secret room
+                    # Draw purple circle with large white ? for secret room
                     pygame.draw.circle(minimap_surface, COLORS['PURPLE'], (center_x, center_y), icon_size)
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size - 1, 1)
+                    # White border
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
+                    # Large white ? mark (simplified - just vertical line and dot)
+                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
+                                   (center_x, center_y - icon_size // 2),
+                                   (center_x, center_y + icon_size // 4), 3)
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], 
+                                     (center_x, center_y + icon_size // 2), 2)
                     
                 elif room.room_type == 'super_secret':
-                    # Draw double question mark / star for super secret
+                    # Draw cyan circle with white star for super secret
                     pygame.draw.circle(minimap_surface, COLORS['CYAN'], (center_x, center_y), icon_size)
-                    # Draw a simple star/sparkle
-                    sparkle_size = icon_size - 1
+                    # White border
+                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
+                    # Large white star (two crossing lines)
+                    star_size = icon_size - 2
                     pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x, center_y - sparkle_size),
-                                   (center_x, center_y + sparkle_size), 2)
+                                   (center_x, center_y - star_size),
+                                   (center_x, center_y + star_size), 3)
                     pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - sparkle_size, center_y),
-                                   (center_x + sparkle_size, center_y), 2)
+                                   (center_x - star_size, center_y),
+                                   (center_x + star_size, center_y), 3)
                 # Normal rooms ('start', 'normal', etc.) have no icon
         
         # Draw icons on adjacent unexplored rooms too (but dimmer/simpler)
