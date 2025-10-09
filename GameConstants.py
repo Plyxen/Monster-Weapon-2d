@@ -50,7 +50,7 @@ DEFAULT_PLAYER_ATTACK = 10  # Base player attack power
 DEFAULT_PLAYER_DEFENSE = 5  # Base player defense
 DAMAGE_FLASH_DURATION = 10  # Frames for damage flash effect
 HEAL_FLASH_DURATION = 20    # Frames for heal flash effect
-INVINCIBILITY_FRAMES = 90   # Frames of invincibility after taking damage (1.5 seconds at 60 FPS)
+INVINCIBILITY_FRAMES = 72   # Frames of invincibility after taking damage (1.2 seconds at 60 FPS)
 
 # Player Movement and Combat
 PLAYER_SPEED = 0.08         # Player movement speed (cells per frame) - REDUCED from 0.15
@@ -75,6 +75,9 @@ ENEMY_SPEED_CHARGER_BOOST = 0.08  # Charger speed when close - REDUCED from 0.14
 # Enemy Bullet Settings
 ENEMY_BULLET_SPEED = 2.5    # Enemy bullet speed (pixels per frame) - REDUCED from 3.0
 ENEMY_SHOOT_COOLDOWN = 120  # Frames between enemy shots (2 seconds) - INCREASED from 90
+
+# Enemy Spawn Settings
+MIN_ENEMY_SPAWN_DISTANCE = 4  # Minimum grid distance from player when spawning enemies in a room
 
 # Loot Distribution Settings
 TREASURE_ITEM_DENSITY = 6   # 1/6 density in treasure rooms
