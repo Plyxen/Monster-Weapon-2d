@@ -6,7 +6,7 @@ This module contains the core game entity classes: Player, Monster, Item, Room, 
 
 import pygame
 import math
-from typing import List
+from typing import List, Optional
 from enum import Enum
 from GameConstants import *
 
@@ -269,7 +269,7 @@ class Monster:
     - CHARGER: Fast when close (speed 0.06-0.14, HP 4, size 20)
     """
     
-    def __init__(self, x: int, y: int, enemy_type: EnemyType = None):
+    def __init__(self, x: int, y: int, enemy_type: Optional[EnemyType] = None):
         """
         Create a new monster at the specified position.
         
@@ -493,7 +493,7 @@ class Monster:
                 self.x = new_grid_x
                 self.y = new_grid_y
     
-    def try_shoot(self, player_x: float, player_y: float, current_frame: int) -> 'Bullet':
+    def try_shoot(self, player_x: float, player_y: float, current_frame: int) -> Optional['Bullet']:
         """
         Try to shoot at the player.
         
@@ -587,7 +587,7 @@ class Player:
         self.damage_flash = 0
         self.heal_flash = 0
     
-    def shoot(self, direction_x: int, direction_y: int, current_frame: int) -> 'Bullet':
+    def shoot(self, direction_x: float, direction_y: float, current_frame: int) -> Optional['Bullet']:
         """
         Shoot a tear in the specified direction.
         
