@@ -798,8 +798,6 @@ class EnhancedMazeGame:
             all_game_rooms.extend(self.secret_rooms)
         if hasattr(self, 'super_secret_rooms'):
             all_game_rooms.extend(self.super_secret_rooms)
-        if hasattr(self, 'boss_rooms'):
-            all_game_rooms.extend(self.boss_rooms)
         
         for room in all_game_rooms:
             # Skip starting room
@@ -2195,10 +2193,12 @@ class EnhancedMazeGame:
             if (self.player.invincibility_frames // 4) % 2 == 0:
                 flash_alpha = True
         
+        # Define body size for player rendering
+        body_size = 24
+        
         if not flash_alpha:
             # Draw player as a knight-like figure
             # Body (circle)
-            body_size = 24
             pygame.draw.circle(self.screen, player_color, (center_x, center_y), body_size // 2)
             pygame.draw.circle(self.screen, COLORS['WHITE'], (center_x, center_y), body_size // 2, 3)
             
