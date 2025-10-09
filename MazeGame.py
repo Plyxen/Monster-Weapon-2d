@@ -26,6 +26,7 @@ from typing import Tuple, List, Optional
 # Import constants and entities from modular files
 from GameConstants import *
 from GameEntities import ItemType, Item, Room, Monster, Player, Camera, Bullet, EnemyType, Obstacle
+from PixelArtAssets import PixelArtRenderer
 
 # Initialize Pygame
 pygame.init()
@@ -2341,87 +2342,25 @@ class EnhancedMazeGame:
                 # Draw icon for special room types only (normal rooms have no icon)
                 center_x = mini_left + mini_width // 2
                 center_y = mini_top + mini_height // 2
-                # Make icons bigger and clearer
-                icon_size = max(6, int(min(mini_width, mini_height) * 0.7))
                 
-                if room.room_type == 'boss':
-                    # Draw large red skull icon for boss - VERY VISIBLE
-                    # Main skull shape (large red circle)
-                    pygame.draw.circle(minimap_surface, COLORS['RED'], (center_x, center_y), icon_size)
-                    # White border to make it stand out
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
-                    # Large black eyes
-                    eye_size = max(2, icon_size // 3)
-                    eye_offset = max(2, icon_size // 2)
-                    pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
-                                     (center_x - eye_offset, center_y), eye_size)
-                    pygame.draw.circle(minimap_surface, COLORS['BLACK'], 
-                                     (center_x + eye_offset, center_y), eye_size)
-                    
-                elif room.room_type == 'treasure':
-                    # Draw large gold crown icon for treasure room
-                    crown_color = COLORS['GOLD']
-                    # Large filled circle background
-                    pygame.draw.circle(minimap_surface, crown_color, (center_x, center_y), icon_size)
-                    # White border
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
-                    # Simple crown shape on top
-                    crown_size = icon_size // 2
-                    pygame.draw.rect(minimap_surface, COLORS['YELLOW'],
-                                   pygame.Rect(center_x - crown_size, center_y - 1,
-                                             crown_size * 2, crown_size))
-                    
-                elif room.room_type == 'shop':
-                    # Draw large green circle with white $ symbol for shop
-                    pygame.draw.circle(minimap_surface, COLORS['GREEN'], (center_x, center_y), icon_size)
-                    # White border
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
-                    # Simple $ sign (vertical line with two horizontal lines)
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x, center_y - icon_size + 2),
-                                   (center_x, center_y + icon_size - 2), 3)
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - icon_size // 2, center_y - icon_size // 3),
-                                   (center_x + icon_size // 2, center_y - icon_size // 3), 2)
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - icon_size // 2, center_y + icon_size // 3),
-                                   (center_x + icon_size // 2, center_y + icon_size // 3), 2)
-                    
-                elif room.room_type == 'secret':
-                    # Draw purple circle with large white ? for secret room
-                    pygame.draw.circle(minimap_surface, COLORS['PURPLE'], (center_x, center_y), icon_size)
-                    # White border
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
-                    # Large white ? mark (simplified - just vertical line and dot)
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x, center_y - icon_size // 2),
-                                   (center_x, center_y + icon_size // 4), 3)
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], 
-                                     (center_x, center_y + icon_size // 2), 2)
-                    
-                elif room.room_type == 'super_secret':
-                    # Draw cyan circle with white star for super secret
-                    pygame.draw.circle(minimap_surface, COLORS['CYAN'], (center_x, center_y), icon_size)
-                    # White border
-                    pygame.draw.circle(minimap_surface, COLORS['WHITE'], (center_x, center_y), icon_size, 2)
-                    # Large white star (two crossing lines)
-                    star_size = icon_size - 2
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x, center_y - star_size),
-                                   (center_x, center_y + star_size), 3)
-                    pygame.draw.line(minimap_surface, COLORS['WHITE'],
-                                   (center_x - star_size, center_y),
-                                   (center_x + star_size, center_y), 3)
+                # Use PixelArtRenderer from PixelArtAssets module
+                PixelArtRenderer.draw_room_icon(minimap_surface, center_x, center_y, 
+                                               room.room_type, dimmed=False)
                 # Normal rooms ('start', 'normal', etc.) have no icon
         
-        # Draw icons on adjacent unexplored rooms too (but dimmer/simpler)
+        # Draw icons on adjacent unexplored rooms (dimmed versions)
         for room in adjacent_unexplored_rooms:
             mini_left = int(offset_x + room.left * scale)
             mini_top = int(offset_y + room.top * scale)
             mini_width = int((room.right - room.left) * scale)
             mini_height = int((room.bottom - room.top) * scale)
             
-            # Unexplored adjacent rooms are just grey rectangles (no icon needed)
+            center_x = mini_left + mini_width // 2
+            center_y = mini_top + mini_height // 2
+            
+            # Draw dimmed version of icon using PixelArtRenderer
+            PixelArtRenderer.draw_room_icon(minimap_surface, center_x, center_y,
+                                           room.room_type, dimmed=True)
         
         # Draw maze details on top (walls, doors, special markers)
         for y, row in enumerate(self.maze):
