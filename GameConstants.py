@@ -24,7 +24,7 @@ FPS = 60                    # Target frames per second
 DEFAULT_UI_WIDTH = 250      # Right panel width for stats/minimap
 DEFAULT_MINIMAP_SIZE = 180  # Minimap dimensions in pixels
 DEFAULT_CELL_SIZE = 55      # Pixels per grid cell (zoomed in for better view)
-DEFAULT_MOVE_DELAY = 150    # Milliseconds between moves when holding key
+DEFAULT_MOVE_DELAY = 50     # Milliseconds between moves when holding key (Isaac-like responsive)
 
 # Dungeon Generation Settings
 DEFAULT_MAZE_WIDTH = 90     # Dungeon width in grid cells (increased for better spacing)
@@ -53,9 +53,9 @@ HEAL_FLASH_DURATION = 20    # Frames for heal flash effect
 INVINCIBILITY_FRAMES = 72   # Frames of invincibility after taking damage (1.2 seconds at 60 FPS)
 
 # Player Movement and Combat
-PLAYER_SPEED = 0.08         # Player movement speed (cells per frame) - REDUCED from 0.15
-PLAYER_SHOOT_COOLDOWN = 20  # Frames between player shots (was 15)
-PLAYER_BULLET_SPEED = 4.0   # Player bullet speed (pixels per frame) - REDUCED from 5.0
+PLAYER_SPEED = 0.12         # Player movement speed (cells per frame) - Isaac-like smooth movement
+PLAYER_SHOOT_COOLDOWN = 15  # Frames between player shots (faster shooting)
+PLAYER_BULLET_SPEED = 5.0   # Player bullet speed (pixels per frame)
 
 # Monster Settings
 MONSTER_MOVE_DELAY = 2000   # Milliseconds between monster moves
