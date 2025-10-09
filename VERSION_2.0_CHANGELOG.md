@@ -65,6 +65,71 @@ All speeds reduced to make gameplay more tactical and less frantic.
 
 ---
 
+## 🎨 Visual Improvements
+
+### Pixel Art System Refactor
+**Goal**: Create a centralized, modular pixel art asset system for better organization and future expansion.
+
+#### Treasure Room Icon Enhancement
+**Old Design**: Gold crown with red jewels  
+**New Design**: Bright yellow crown with light yellow highlights
+
+**Visual Changes**:
+- Changed base color from gold to pure yellow (`COLORS['YELLOW']`)
+- Replaced red jewel accents with bright yellow highlights `(255, 255, 150)`
+- Improved visibility on minimap
+- More vibrant and eye-catching appearance
+
+**Pixel Art Pattern** (7x7 grid):
+```
+  Crown Points:  [0, 2, 0, 2, 0, 2, 0]  (Bright yellow tips)
+  Crown Tips:    [0, 2, 0, 2, 0, 2, 0]
+  Top Band:      [1, 1, 1, 1, 1, 1, 1]  (Yellow base)
+  Decorative:    [1, 2, 1, 2, 1, 2, 1]  (Bright yellow pattern)
+  Middle Band:   [1, 1, 1, 1, 1, 1, 1]
+  Base:          [1, 1, 1, 1, 1, 1, 1]
+  Bottom Shine:  [2, 2, 2, 2, 2, 2, 2]  (Bright yellow base)
+```
+
+Where:
+- `1` = Yellow base color `COLORS['YELLOW']`
+- `2` = Light yellow highlights `(255, 255, 150)`
+
+### New Pixel Art Asset System
+**Created**: `PixelArtAssets.py` - Centralized module for all game visual assets
+
+**Features**:
+- **RoomIcons Class**: All minimap room icons (Boss, Treasure, Shop, Secret, Super Secret)
+- **PixelArtRenderer Class**: Utility for drawing pixel art on surfaces
+- **Preview System**: Built-in tool to view all icons (run `python PixelArtAssets.py`)
+- **Future-Ready**: Organized structure for items, UI elements, and effects
+
+**Room Icons Included**:
+1. **Boss Room**: Red skull with black eyes and teeth
+2. **Treasure Room**: Bright yellow crown ⭐ (NEW COLORS)
+3. **Shop Room**: Brown money bag with gold dollar sign
+4. **Secret Room**: Purple background with white question mark
+5. **Super Secret Room**: Cyan sparkle with white highlights
+
+**Benefits**:
+- Removed ~240 lines of duplicate code from `MazeGame.py`
+- Single source of truth for all pixel art
+- Easy to add new visual assets
+- Professional asset management system
+- Built-in preview tool for designing
+
+**Files Created**:
+- `PixelArtAssets.py` - Main pixel art module (300+ lines)
+- `preview_pixel_art.bat` - Quick preview launcher
+- `PIXEL_ART_GUIDE.md` - Complete documentation for adding new assets
+
+**Code Cleanup**:
+- Extracted helper methods `_draw_pixel_art_icon()` and `_get_room_icon_data()` 
+- Replaced with clean `PixelArtRenderer.draw_room_icon()` calls
+- Minimap drawing code reduced by ~73%
+
+---
+
 ## 🗂️ Code Organization
 
 ### Constants Consolidation
@@ -163,15 +228,22 @@ All Python files now have clear module-level docstrings:
 ### Files Modified
 1. `GameConstants.py` - Added 14 new constants
 2. `GameEntities.py` - Updated to use constants, added spawn_room
-3. `MazeGame.py` - Set spawn_room, removed corridor monsters
+3. `MazeGame.py` - Set spawn_room, removed corridor monsters, refactored pixel art
 4. `README.md` - Added v2.0 section
 5. `GAME_SUMMARY.md` - Added update summary
 6. `VERSION_2.0_CHANGELOG.md` - This file (NEW)
 
+**New Files Created**:
+7. `PixelArtAssets.py` - Centralized pixel art system (NEW)
+8. `preview_pixel_art.bat` - Pixel art preview tool (NEW)
+9. `PIXEL_ART_GUIDE.md` - Asset creation guide (NEW)
+
 ### Lines Changed
 - **GameConstants.py**: +30 lines (new constants)
 - **GameEntities.py**: ~20 lines modified (constants + spawn_room)
-- **MazeGame.py**: ~10 lines modified (spawn_room assignment, removed corridor spawn)
+- **MazeGame.py**: ~10 lines modified (spawn_room assignment, removed corridor spawn), **-240 lines** (pixel art refactor)
+- **PixelArtAssets.py**: +300 lines (NEW - pixel art system)
+- **PIXEL_ART_GUIDE.md**: +200 lines (NEW - documentation)
 - **Documentation**: ~100 lines added across README and GAME_SUMMARY
 
 ### No Breaking Changes
@@ -187,7 +259,11 @@ All changes are backwards compatible with existing code structure.
 ✅ All speeds feel balanced and tactical  
 ✅ Game loads without errors  
 ✅ No performance regressions  
-✅ Documentation is clear and accurate
+✅ Documentation is clear and accurate  
+✅ Pixel art icons display correctly on minimap  
+✅ Treasure room icon is bright yellow and visible  
+✅ Dimmed icons show properly for unexplored rooms  
+✅ Preview tool displays all icons correctly
 
 ### Known Issues
 None at this time.
@@ -203,6 +279,8 @@ Potential areas for future updates:
 4. Room modifiers (curse rooms, angel rooms)
 5. Sound effects and music
 6. Particle effects for bullets/impacts
+7. **Additional pixel art assets** (item icons, UI elements, effects) - System ready!
+8. **Animated sprites** (use PixelArtAssets system as foundation)
 
 ---
 
@@ -211,9 +289,10 @@ Potential areas for future updates:
 Version 2.0 successfully addresses player feedback by:
 - **Fixing critical bugs** (enemy teleportation, invincibility)
 - **Balancing gameplay** (slower, more tactical combat)
-- **Organizing code** (constants in one place)
+- **Organizing code** (constants in one place, pixel art system)
+- **Improving visuals** (brighter treasure icon, cleaner asset management)
 - **Improving documentation** (clear, concise, helpful)
 
-The game now plays exactly as intended: a balanced, fair, tactical Isaac-like roguelike with proper room-based combat and clear progression.
+The game now plays exactly as intended: a balanced, fair, tactical Isaac-like roguelike with proper room-based combat and clear progression. The new pixel art system makes adding visual content much easier for future updates.
 
 **Recommended for all players!** 🎮
