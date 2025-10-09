@@ -619,20 +619,6 @@ class Player:
         self.last_shot_time = current_frame
         return Bullet(self.real_x, self.real_y, vel_x, vel_y, self.tear_damage, is_enemy=False)
     
-    def take_damage(self, damage: int):
-        """
-        Deal damage to player if not invincible.
-        
-        Args:
-            damage: Amount of damage to take
-        """
-        if self.invincibility_frames > 0:
-            return
-        
-        self.hp = max(0, self.hp - damage)
-        self.invincibility_frames = self.invincibility_duration
-        self.damage_flash = DAMAGE_FLASH_DURATION
-    
     def update_invincibility(self):
         """Update invincibility timer."""
         if self.invincibility_frames > 0:
@@ -886,8 +872,13 @@ class Player:
     
     def take_damage(self, damage: int):
         """Apply damage to the player with defense calculation."""
+        # Check invincibility frames
+        if self.invincibility_frames > 0:
+            return 0
+        
         actual_damage = max(1, damage - self.defense)
         self.hp = max(0, self.hp - actual_damage)
+        self.invincibility_frames = self.invincibility_duration
         self.damage_flash = DAMAGE_FLASH_DURATION
         return actual_damage
     
