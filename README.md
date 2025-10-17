@@ -11,9 +11,16 @@ Navigate through randomly generated dungeons, collect powerful items, fight mons
 ## 🆕 Version 2.0 Updates
 
 ### Bug Fixes
-- ✅ **Enemy Room Lock**: Enemies stay in their spawn rooms (no more teleporting!)
-- ✅ **Invincibility Frames**: 1.5 seconds of invincibility after damage (no more one-shots)
-- ✅ **Pure Room Combat**: Removed corridor enemies for true Isaac-style gameplay
+- ✅ **Enemy Room Lock**: Enemies stay in their spawn rooms
+- ✅ **Invincibility Frames**: 1.5 seconds of invincibility after damage  
+- ✅ **Pure Room Combat**: Removed corridor enemies for Isaac-style gameplay
+- ✅ **Import Fix**: Fixed missing enums module import error
+
+### New Features
+- - **Pixel Art Editor** with accurate color mapping
+- 🎯 **Click Room Selection**: Choose Boss, Treasure, Shop, Secret, or Super Secret rooms  
+- 💾 **Direct Asset Saving**: Changes save immediately to game files
+- � **Smart Dependencies**: Auto-install missing packages on game start
 
 ### Balance & Speed Changes
 All speeds reduced ~40% for more tactical, strategic gameplay:
@@ -40,43 +47,37 @@ play.bat
 ```
 
 **All Platforms**:
-```bash
-# 1. Install Python (3.8+) and dependencies
-pip install -r requirements.txt
+## 🚀 Quick Start
 
-# 2. Run the game
+```bash
+# Run the game (auto-installs dependencies)
+play.bat
+
+# Or manually:
+pip install pygame>=2.5.0
 python GameLoader.py
 ```
 
-**System Requirements**: Windows/Mac/Linux, 1GB RAM, 1400x900+ display
-
-## ✨ What Makes It Fun
-
-- 🎲 **Every Game is Different**: Randomly generated Isaac-style dungeons with unique layouts
-- ⚔️ **Strategic Combat**: Fight monsters, collect weapons and armor to get stronger  
-- 🗝️ **Treasure Hunting**: Find keys to unlock special rooms with valuable loot
-- 🗺️ **Exploration**: Fog of war and minimap make discovery rewarding
-- 🎨 **Polished Graphics**: Isaac-style monsters and detailed item sprites
-- 🚪 **Dynamic Doors**: Room doors close when enemies are present - clear them to escape!
-
 ## 🎮 How to Play
 
-**Controls**: `WASD` or `Arrow Keys` to move • `ESC` to quit • `R` to restart
+**Controls**: WASD/Arrow Keys • ESC=quit • R=restart  
+**Goal**: Navigate from green start to red exit room
 
-**Goal**: Navigate from the green start room to the red exit room
+- Collect items: 💰 treasure, 🧪 potions, ⚔️ weapons, 🛡️ shields
+- Fight monsters by walking into them
+- Find 🗝️ keys to unlock treasure rooms
+- Clear rooms to open doors
 
-**Gameplay**:
-- Walk into items to collect them (💰 treasure, 🧪 potions, ⚔️ weapons, 🛡️ shields)  
-- Walk into monsters to fight them
-- Find 🗝️ keys to unlock special treasure rooms (marked with locked doors)
-- Clear rooms of enemies to open their doors
-- Survive and reach the exit for maximum score!
+## 🎨 Professional Pixel Art Editor
 
-**Tips**: 
-- Collect health potions before big fights
-- Upgrade your gear early for easier combat
-- Treasure rooms have the best loot but strongest enemies
-- Room doors close when enemies are inside - defeat them all to escape!
+Customize room icons with the pixel art editor:
+```bash
+pixel_art_editor.bat
+```
+- **Click Room Buttons**: Select Boss, Treasure, Shop, Secret, or Super Secret rooms
+- **0-9, A-F**: Select colors (16-color palette matching game assets)
+- **Professional UI**: Live preview, accurate colors, UTF-8 safe saving
+- **S**: Save to game • **C**: Clear • **ESC**: Exit
 
 ## 📁 Project Structure
 
