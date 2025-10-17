@@ -1,8 +1,4 @@
-"""
-Monster Manager Module
-
-This module handles monster generation, AI behavior, and combat mechanics.
-"""
+"""Monster Manager for Monster-Weapon-2d"""
 
 import random
 from typing import List, Tuple
@@ -11,7 +7,6 @@ from GameConstants import *
 
 
 class MonsterManager:
-    """Manages monster generation, AI, and combat."""
     
     def __init__(self):
         """Initialize the monster manager."""
