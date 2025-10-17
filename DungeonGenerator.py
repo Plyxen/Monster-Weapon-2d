@@ -1,9 +1,4 @@
-"""
-Dungeon Generation Module
-
-This module handles all dungeon generation logic including rooms, corridors,
-and procedural layout creation.
-"""
+"""Dungeon Generation for Monster-Weapon-2d"""
 
 import random
 import math
@@ -13,7 +8,6 @@ from GameConstants import *
 
 
 class DungeonGenerator:
-    """Handles procedural dungeon generation with rooms and corridors."""
     
     def __init__(self, width: int, height: int):
         """
