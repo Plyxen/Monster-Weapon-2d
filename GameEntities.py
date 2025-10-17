@@ -1,8 +1,4 @@
-"""
-Game Entities Module
-
-This module contains the core game entity classes: Player, Monster, Item, Room, and Bullet.
-"""
+"""Game Entities for Monster-Weapon-2d"""
 
 import pygame
 import math
@@ -12,13 +8,12 @@ from GameConstants import *
 
 
 class EnemyType(Enum):
-    """Different enemy types with unique stats and behavior."""
-    FLY = "fly"              # Fast, weak, small
-    GAPER = "gaper"          # Medium speed, medium HP
-    SHOOTER = "shooter"      # Slow, shoots, medium HP
-    TANK = "tank"            # Very slow, high HP, large
-    SPEEDY = "speedy"        # Very fast, low HP, small
-    CHARGER = "charger"      # Fast when close, medium HP
+    FLY = "fly"
+    GAPER = "gaper"
+    SHOOTER = "shooter"
+    TANK = "tank"
+    SPEEDY = "speedy"
+    CHARGER = "charger"
 
 
 class Obstacle:
