@@ -1,8 +1,4 @@
-"""
-Item Manager Module
-
-This module handles item placement, collection, and management throughout the dungeon.
-"""
+"""Item Manager for Monster-Weapon-2d"""
 
 import random
 from typing import List, Tuple
@@ -11,7 +7,6 @@ from GameConstants import *
 
 
 class ItemManager:
-    """Manages item generation and placement in the dungeon."""
     
     def __init__(self):
         """Initialize the item manager."""
