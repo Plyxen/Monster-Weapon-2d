@@ -1,14 +1,9 @@
-"""
-Enumerations for the Monster-Weapon-2d game
-
-This module contains enum definitions for game elements like cell types and directions.
-"""
+"""Game enumerations for Monster-Weapon-2d"""
 
 from enum import Enum
 
 
 class CellType(Enum):
-    """Cell types for dungeon generation"""
     WALL = "wall"
     PATH = "path"
     START = "start"
@@ -19,12 +14,7 @@ class CellType(Enum):
 
 
 class Direction(Enum):
-    """Directions for movement and orientation"""
     NORTH = "north"
     SOUTH = "south"
     EAST = "east"
     WEST = "west"
-    UP = "up"
-    DOWN = "down"
-    LEFT = "left"
-    RIGHT = "right"
