@@ -56,7 +56,6 @@ class PixelEditorLoader:
         time.sleep(0.2)
         self.loading = False
         time.sleep(0.15)
-        sys.stdout.write('\r  ✓ Pixel Art Editor loaded successfully!' + ' ' * 70 + '\n\n')
         sys.stdout.flush()
 
 
@@ -724,12 +723,6 @@ def run_editor_with_loader():
         time.sleep(0.3)
         
         loader.stop()
-        
-        print("  🎨 PIXEL ART EDITOR")
-        print("  Features: 32 colors, room editing, live preview")
-        print("  Controls: Click to paint | B=Black | W=White | S=Save | C=Clear | ESC=Exit")
-        print("\n  Starting editor...\n")
-        time.sleep(0.5)
         
         # Run the actual editor
         editor = PixelArtEditor()
