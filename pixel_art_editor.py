@@ -4,10 +4,60 @@ Pixel Art Editor for Monster-Weapon-2d Game
 Clean interface for editing room icons with accurate color mapping.
 """
 
+import sys
+import os
+import warnings
+import time
+import threading
 import pygame
 from typing import Dict, Tuple, Optional
 from GameConstants import COLORS
 from PixelArtAssets import RoomIcons, PixelArtRenderer
+
+
+class PixelEditorLoader:
+    """Loading screen for pixel art editor (same as game's loader)"""
+    
+    def __init__(self):
+        self.loading = True
+        self.progress = 0
+        self.max_progress = 100
+        self.bar_width = 40
+        self.frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+        self.current_frame = 0
+        self.status_text = "Initializing..."
+        
+    def animate(self):
+        print("\n" * 2)
+        while self.loading:
+            filled = int(self.bar_width * self.progress / self.max_progress)
+            bar = '█' * filled + '░' * (self.bar_width - filled)
+            frame = self.frames[self.current_frame % len(self.frames)]
+            percent = int(100 * self.progress / self.max_progress)
+            sys.stdout.write(f'\r  {frame} [{bar}] {percent}% - {self.status_text}' + ' ' * 20)
+            sys.stdout.flush()
+            self.current_frame += 1
+            time.sleep(0.1)
+        
+    def start(self):
+        self.loading = True
+        self.progress = 0
+        thread = threading.Thread(target=self.animate)
+        thread.daemon = True
+        thread.start()
+    
+    def update_progress(self, progress, status="Loading..."):
+        self.progress = min(progress, self.max_progress)
+        self.status_text = status
+        
+    def stop(self):
+        self.progress = self.max_progress
+        self.status_text = "Complete!"
+        time.sleep(0.2)
+        self.loading = False
+        time.sleep(0.15)
+        sys.stdout.write('\r  ✓ Pixel Art Editor loaded successfully!' + ' ' * 70 + '\n\n')
+        sys.stdout.flush()
 
 
 class PixelArtEditor:
@@ -68,15 +118,15 @@ class PixelArtEditor:
         self.selected_color = 1
         self.drawing = False
         
-        # Professional UI Layout - Expanded for more colors
-        self.window_width = 1300
-        self.window_height = 800
+        # Professional UI Layout - Compact size for better screen compatibility
+        self.window_width = 1000
+        self.window_height = 650
         
-        # Layout areas
-        self.grid_area = pygame.Rect(50, 100, self.grid_size * self.pixel_size + 50, self.grid_size * self.pixel_size + 50)
-        self.palette_area = pygame.Rect(450, 100, 200, 520)  # Taller for more colors
-        self.room_selector_area = pygame.Rect(700, 100, 450, 300)
-        self.preview_area = pygame.Rect(700, 420, 450, 200)
+        # Layout areas - Compact layout for smaller window
+        self.grid_area = pygame.Rect(30, 100, self.grid_size * self.pixel_size + 50, self.grid_size * self.pixel_size + 50)
+        self.palette_area = pygame.Rect(420, 100, 180, 450)  # Compact palette
+        self.room_selector_area = pygame.Rect(620, 100, 350, 280)
+        self.preview_area = pygame.Rect(620, 390, 350, 160)
         
         pygame.init()
         self.screen = pygame.display.set_mode((self.window_width, self.window_height))
@@ -240,7 +290,7 @@ class PixelArtEditor:
         
         start_x = expanded_palette_area.x + 10
         start_y = expanded_palette_area.y + 10
-        swatch_size = 28
+        swatch_size = 24
         cols = 4
         
         # Get room-specific colors for accurate display
@@ -252,8 +302,8 @@ class PixelArtEditor:
                 
             row = i // cols
             col = i % cols
-            x = start_x + col * (swatch_size + 6)
-            y = start_y + row * (swatch_size + 22)
+            x = start_x + col * (swatch_size + 5)
+            y = start_y + row * (swatch_size + 20)
             
             swatch_rect = pygame.Rect(x, y, swatch_size, swatch_size)
             
@@ -294,8 +344,8 @@ class PixelArtEditor:
         
         start_x = self.room_selector_area.x + 10
         start_y = self.room_selector_area.y + 10
-        button_width = 200
-        button_height = 40
+        button_width = 160
+        button_height = 35
         
         for i, (room_key, room_data) in enumerate(self.room_types.items()):
             y = start_y + i * (button_height + 10)
@@ -324,8 +374,8 @@ class PixelArtEditor:
             room_data['button_rect'] = button_rect
             
             # Mini icon preview
-            icon_x = start_x + button_width + 20
-            icon_y = y + 10
+            icon_x = start_x + button_width + 15
+            icon_y = y + 8
             
             # Icon background
             icon_bg = pygame.Rect(icon_x - 5, icon_y - 5, 30, 30)
@@ -366,7 +416,7 @@ class PixelArtEditor:
     
     def draw_controls_panel(self):
         """Draw professional controls panel"""
-        controls_rect = pygame.Rect(50, self.window_height - 100, self.window_width - 100, 80)
+        controls_rect = pygame.Rect(30, self.window_height - 90, self.window_width - 60, 70)
         self.draw_section_panel(controls_rect, "Controls & Shortcuts", (100, 150, 200))
         
         controls = [
@@ -377,7 +427,7 @@ class PixelArtEditor:
         
         start_x = controls_rect.x + 10
         start_y = controls_rect.y + 10
-        col_width = 200
+        col_width = 160
         
         for i, control in enumerate(controls):
             x = start_x + (i % 4) * col_width
@@ -387,7 +437,7 @@ class PixelArtEditor:
     
     def draw_status_bar(self):
         """Draw status bar showing current selection info"""
-        status_rect = pygame.Rect(50, 50, self.window_width - 100, 40)
+        status_rect = pygame.Rect(30, 50, self.window_width - 60, 40)
         pygame.draw.rect(self.screen, (45, 45, 50), status_rect, border_radius=5)
         pygame.draw.rect(self.screen, (100, 150, 200), status_rect, 2, border_radius=5)
         
@@ -423,7 +473,7 @@ class PixelArtEditor:
         """Handle clicks on expanded color palette"""
         start_x = self.palette_area.x + 10
         start_y = self.palette_area.y + 10
-        swatch_size = 28
+        swatch_size = 24
         cols = 4
         
         mx, my = mouse_pos
@@ -435,8 +485,8 @@ class PixelArtEditor:
                 
             row = i // cols
             col = i % cols
-            x = start_x + col * (swatch_size + 6)
-            y = start_y + row * (swatch_size + 22)
+            x = start_x + col * (swatch_size + 5)
+            y = start_y + row * (swatch_size + 20)
             
             if x <= mx <= x + swatch_size and y <= my <= y + swatch_size:
                 self.selected_color = color_id
@@ -624,7 +674,7 @@ class PixelArtEditor:
             pygame.draw.rect(self.screen, (50, 50, 55), title_rect)
             pygame.draw.rect(self.screen, (100, 150, 200), title_rect, 3)
             
-            title_text = self.title_font.render("Professional Pixel Art Editor - Monster Weapon 2D", True, (255, 255, 255))
+            title_text = self.title_font.render("Pixel Art Editor - Monster Weapon 2D", True, (255, 255, 255))
             title_x = self.window_width // 2 - title_text.get_width() // 2
             self.screen.blit(title_text, (title_x, 25))
             
@@ -644,6 +694,70 @@ class PixelArtEditor:
         print("Professional Pixel Art Editor closed successfully!")
 
 
+def run_editor_with_loader():
+    """Run the pixel art editor with loading screen like the main game"""
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+    warnings.filterwarnings("ignore")
+    
+    print("=" * 50)
+    print("   PIXEL ART EDITOR - MONSTER WEAPON 2D")
+    print("=" * 50)
+    print("\n  Initializing pixel art editor...")
+    
+    loader = PixelEditorLoader()
+    loader.start()
+    
+    try:
+        loader.update_progress(15, "Loading Python modules...")
+        time.sleep(0.3)
+        
+        loader.update_progress(35, "Importing Pygame...")
+        time.sleep(0.3)
+        
+        loader.update_progress(55, "Loading game constants...")
+        time.sleep(0.3)
+        
+        loader.update_progress(75, "Loading pixel art assets...")
+        time.sleep(0.3)
+        
+        loader.update_progress(90, "Initializing editor interface...")
+        time.sleep(0.3)
+        
+        loader.stop()
+        
+        print("  🎨 PIXEL ART EDITOR")
+        print("  Features: 32 colors, room editing, live preview")
+        print("  Controls: Click to paint | B=Black | W=White | S=Save | C=Clear | ESC=Exit")
+        print("\n  Starting editor...\n")
+        time.sleep(0.5)
+        
+        # Run the actual editor
+        editor = PixelArtEditor()
+        editor.run()
+        
+    except ImportError as e:
+        loader.stop()
+        print(f"\n  ✗ Error: Missing dependency - {e}")
+        print("  Please install pygame: pip install pygame")
+        sys.exit(1)
+    except Exception as e:
+        loader.stop()
+        print(f"\n  ✗ Error loading editor: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def run_editor_direct():
+    """Run the pixel art editor directly without loading screen"""
+    try:
+        editor = PixelArtEditor()
+        editor.run()
+    except Exception as e:
+        print(f"Error running pixel art editor: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
-    editor = PixelArtEditor()
-    editor.run()
+    run_editor_with_loader()
