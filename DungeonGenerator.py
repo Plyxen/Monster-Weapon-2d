@@ -8,6 +8,7 @@ from GameConstants import *
 
 
 class DungeonGenerator:
+    """Generates roguelike dungeons with rooms, corridors, and locked doors."""
     
     def __init__(self, width: int, height: int):
         """
