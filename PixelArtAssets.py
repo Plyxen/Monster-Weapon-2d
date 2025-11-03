@@ -1,9 +1,12 @@
 """Pixel Art Assets for Monster-Weapon-2d"""
 
+from typing import Dict, Optional, Tuple
 from GameConstants import COLORS
 
 
 class RoomIcons:
+    """Pixel art icon definitions for different room types."""
+    
     BOSS = {
         'pixels': [
             [0, 1, 1, 1, 1, 1, 0],
@@ -65,8 +68,32 @@ class RoomIcons:
         'name': 'Super Secret Sparkle'
     }
     
+    # Color palettes for each icon type
+    COLOR_PALETTES = {
+        'BOSS': {
+            'normal': {1: COLORS['RED'], 2: COLORS['BLACK']},
+            'dimmed': {1: (100, 0, 0), 2: COLORS['BLACK']}
+        },
+        'TREASURE': {
+            'normal': {1: COLORS['YELLOW'], 2: (255, 255, 150)},
+            'dimmed': {1: (120, 120, 0), 2: (140, 140, 60)}
+        },
+        'SHOP': {
+            'normal': {1: (139, 90, 43), 2: (90, 60, 30), 3: COLORS['GOLD']},
+            'dimmed': {1: (70, 45, 22), 2: (45, 30, 15), 3: (100, 80, 0)}
+        },
+        'SECRET': {
+            'normal': {1: COLORS['PURPLE'], 2: COLORS['WHITE']},
+            'dimmed': {1: (64, 0, 64), 2: (120, 120, 120)}
+        },
+        'SUPER_SECRET': {
+            'normal': {1: COLORS['CYAN'], 2: COLORS['WHITE']},
+            'dimmed': {1: (0, 80, 80), 2: (120, 120, 120)}
+        }
+    }
+    
     @staticmethod
-    def get_colors(icon_type, dimmed=False):
+    def get_colors(icon_type: Dict, dimmed: bool = False) -> Dict[int, Tuple[int, int, int]]:
         """
         Get color mapping for a specific icon type.
         
@@ -77,41 +104,33 @@ class RoomIcons:
         Returns:
             Dictionary mapping pixel values to RGB color tuples
         """
-        if icon_type == RoomIcons.BOSS:
-            return {
-                1: (100, 0, 0) if dimmed else COLORS['RED'],
-                2: COLORS['BLACK']
-            }
+        # Map icon objects to palette names
+        icon_to_palette = {
+            id(RoomIcons.BOSS): 'BOSS',
+            id(RoomIcons.TREASURE): 'TREASURE',
+            id(RoomIcons.SHOP): 'SHOP',
+            id(RoomIcons.SECRET): 'SECRET',
+            id(RoomIcons.SUPER_SECRET): 'SUPER_SECRET'
+        }
         
-        elif icon_type == RoomIcons.TREASURE:
-            return {
-                1: (120, 120, 0) if dimmed else COLORS['YELLOW'],
-                2: (140, 140, 60) if dimmed else (255, 255, 150)
-            }
-        
-        elif icon_type == RoomIcons.SHOP:
-            return {
-                1: (70, 45, 22) if dimmed else (139, 90, 43),
-                2: (45, 30, 15) if dimmed else (90, 60, 30),
-                3: (100, 80, 0) if dimmed else COLORS['GOLD']
-            }
-        
-        elif icon_type == RoomIcons.SECRET:
-            return {
-                1: (64, 0, 64) if dimmed else COLORS['PURPLE'],
-                2: (120, 120, 120) if dimmed else COLORS['WHITE']
-            }
-        
-        elif icon_type == RoomIcons.SUPER_SECRET:
-            return {
-                1: (0, 80, 80) if dimmed else COLORS['CYAN'],
-                2: (120, 120, 120) if dimmed else COLORS['WHITE']
-            }
+        palette_name = icon_to_palette.get(id(icon_type))
+        if palette_name and palette_name in RoomIcons.COLOR_PALETTES:
+            mode = 'dimmed' if dimmed else 'normal'
+            return RoomIcons.COLOR_PALETTES[palette_name][mode]
         
         return {}
     
+    # Map room type strings to icons
+    ROOM_TYPE_MAP = {
+        'boss': 'BOSS',
+        'treasure': 'TREASURE',
+        'shop': 'SHOP',
+        'secret': 'SECRET',
+        'super_secret': 'SUPER_SECRET'
+    }
+    
     @staticmethod
-    def get_icon_by_room_type(room_type):
+    def get_icon_by_room_type(room_type: str) -> Optional[Dict]:
         """
         Get icon data for a room type string.
         
@@ -121,14 +140,8 @@ class RoomIcons:
         Returns:
             Icon dictionary or None if not found
         """
-        icon_map = {
-            'boss': RoomIcons.BOSS,
-            'treasure': RoomIcons.TREASURE,
-            'shop': RoomIcons.SHOP,
-            'secret': RoomIcons.SECRET,
-            'super_secret': RoomIcons.SUPER_SECRET
-        }
-        return icon_map.get(room_type)
+        icon_name = RoomIcons.ROOM_TYPE_MAP.get(room_type)
+        return getattr(RoomIcons, icon_name, None) if icon_name else None
 
 
 class PixelArtRenderer:
@@ -139,7 +152,8 @@ class PixelArtRenderer:
     """
     
     @staticmethod
-    def draw_icon(surface, center_x, center_y, icon_data, color_map, pixel_size=2):
+    def draw_icon(surface, center_x: int, center_y: int, icon_data: Dict, 
+                 color_map: Dict[int, Tuple[int, int, int]], pixel_size: int = 2):
         """
         Draw a pixel art icon on a surface.
         
@@ -167,7 +181,8 @@ class PixelArtRenderer:
                         ))
     
     @staticmethod
-    def draw_room_icon(surface, center_x, center_y, room_type, dimmed=False, pixel_size=2):
+    def draw_room_icon(surface, center_x: int, center_y: int, room_type: str, 
+                      dimmed: bool = False, pixel_size: int = 2):
         """
         Convenience method to draw a room icon by type.
         
