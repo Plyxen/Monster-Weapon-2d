@@ -108,6 +108,8 @@ class EnhancedMazeGame:
         self.game_won = False
         self.game_over = False
         
+
+        
         # ---- Font Resources for UI ----
         self.font = pygame.font.Font(None, FONT_SIZE_NORMAL)     # Standard text
         self.small_font = pygame.font.Font(None, FONT_SIZE_SMALL)   # Small details  
@@ -1007,6 +1009,9 @@ class EnhancedMazeGame:
                 
                 elif event.key == pygame.K_r and (self.game_won or self.game_over):
                     self.generate_new_maze()
+                
+
+                
                 else:
                     # Key presses still handled for instant response
                     pass
@@ -1015,10 +1020,13 @@ class EnhancedMazeGame:
         if not self.game_over and not self.camera.lock_player_during_transition:
             keys = pygame.key.get_pressed()
             
-            # Calculate movement direction
+
+            
+            # Calculate movement direction with anti-ghosting alternatives
             dx = 0
             dy = 0
             
+            # Primary movement keys (WASD)
             if keys[pygame.K_w]:
                 dy -= 1
             if keys[pygame.K_s]:
@@ -1028,23 +1036,47 @@ class EnhancedMazeGame:
             if keys[pygame.K_d]:
                 dx += 1
             
+            # ---- ANTI-GHOSTING: Alternative movement keys ----
+            # Use IJKL as backup when arrow keys might be blocking WASD
+            if keys[pygame.K_i]:  # Alternative to W (up)
+                dy -= 1
+            if keys[pygame.K_k]:  # Alternative to S (down)  
+                dy += 1
+            if keys[pygame.K_j]:  # Alternative to A (left)
+                dx -= 1
+            if keys[pygame.K_l]:  # Alternative to D (right)
+                dx += 1
+                
+            # Also add numpad support for movement
+            if keys[pygame.K_KP8]:  # Numpad 8 = up
+                dy -= 1
+            if keys[pygame.K_KP2]:  # Numpad 2 = down
+                dy += 1
+            if keys[pygame.K_KP4]:  # Numpad 4 = left  
+                dx -= 1
+            if keys[pygame.K_KP6]:  # Numpad 6 = right
+                dx += 1
+            
+
+            
             # Set player velocity based on input
             self.player.set_velocity(dx, dy)
             
-            # Shooting with arrow keys (Isaac-style)
+            # Shooting with arrow keys (4-direction only, no diagonals)
             shoot_x = 0
             shoot_y = 0
             
+            # Priority system: vertical takes precedence over horizontal to prevent diagonals
             if keys[pygame.K_UP]:
                 shoot_y = -1
-            if keys[pygame.K_DOWN]:
+            elif keys[pygame.K_DOWN]:
                 shoot_y = 1
-            if keys[pygame.K_LEFT]:
+            elif keys[pygame.K_LEFT]:
                 shoot_x = -1
-            if keys[pygame.K_RIGHT]:
+            elif keys[pygame.K_RIGHT]:
                 shoot_x = 1
             
-            # Shoot if arrow key pressed
+            # Shoot if arrow key pressed (single direction only)
             if shoot_x != 0 or shoot_y != 0:
                 bullet = self.player.shoot(shoot_x, shoot_y, self.frame_counter)
                 if bullet:
@@ -1053,8 +1085,9 @@ class EnhancedMazeGame:
                     bullet.y = self.player.real_y * self.cell_size + self.cell_size // 2
                     self.bullets.append(bullet)
             
-            # Update player position with collision detection
+            # Update player momentum and position with collision detection
             old_x, old_y = self.player.x, self.player.y
+            self.player.update_momentum()  # Apply Isaac-style acceleration
             self.player.update_position(self.maze, self)
             
             # Check if player moved to a new grid cell
@@ -2758,6 +2791,7 @@ class EnhancedMazeGame:
             text_x = ui_x + 38 if icon else ui_x + 20
             legend_text = pygame.font.Font(None, FONT_SIZE_TINY).render(text, True, color)
             self.screen.blit(legend_text, (text_x, item_y))
+        
         
         # Game status messages
         if self.game_won:
