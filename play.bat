@@ -21,10 +21,7 @@ if %errorlevel% neq 0 (
     )
     echo.
     echo [OK] Dependencies installed successfully!
-    echo [OK] Restarting to ensure clean environment...
     echo.
-    call "%~f0"
-    exit
 )
 
 echo [OK] Starting game...
@@ -35,4 +32,3 @@ if %errorlevel% neq 0 (
     echo [ERROR] Game failed to start!
     pause
 )
-exit
