@@ -7,6 +7,7 @@ from GameConstants import *
 
 
 class MonsterManager:
+    """Manages monster generation, placement, and behavior in the dungeon."""
     
     def __init__(self):
         """Initialize the monster manager."""
@@ -60,37 +61,52 @@ class MonsterManager:
     def _place_treasure_guardians(self, positions: List[Tuple[int, int]], 
                                   treasure_room_count: int, used_positions: set):
         """Place strong monsters in treasure rooms."""
+        from GameEntities import EnemyType
+        
         random.shuffle(positions)
         monster_count = min(len(positions)//TREASURE_MONSTER_DENSITY, treasure_room_count)
+        
+        # Treasure rooms get stronger enemy types
+        strong_types = [EnemyType.TANK, EnemyType.SHOOTER, EnemyType.CHARGER]
         
         for i in range(monster_count):
             if i >= len(positions):
                 break
             x, y = positions[i]
-            hp = random.randint(4, 6)
-            self.monsters.append(Monster(x, y, hp))
+            enemy_type = random.choice(strong_types)
+            self.monsters.append(Monster(x, y, enemy_type))
             used_positions.add((x, y))
     
     def _place_main_monsters(self, positions: List[Tuple[int, int]], used_positions: set):
         """Place medium monsters in main rooms."""
+        from GameEntities import EnemyType
+        
         random.shuffle(positions)
         monster_count = len(positions) // MAIN_MONSTER_DENSITY
         
+        # Main rooms get medium strength enemy types
+        medium_types = [EnemyType.GAPER, EnemyType.SHOOTER, EnemyType.FLY, EnemyType.SPEEDY]
+        
         for i in range(min(monster_count, len(positions))):
             x, y = positions[i]
-            hp = random.randint(2, 4)
-            self.monsters.append(Monster(x, y, hp))
+            enemy_type = random.choice(medium_types)
+            self.monsters.append(Monster(x, y, enemy_type))
             used_positions.add((x, y))
     
     def _place_corridor_monsters(self, positions: List[Tuple[int, int]], used_positions: set):
         """Place weak monsters in corridors."""
+        from GameEntities import EnemyType
+        
         random.shuffle(positions)
         monster_count = len(positions) // CORRIDOR_MONSTER_DENSITY
         
+        # Corridors get weaker enemy types
+        weak_types = [EnemyType.FLY, EnemyType.GAPER, EnemyType.SPEEDY]
+        
         for i in range(min(monster_count, len(positions))):
             x, y = positions[i]
-            hp = random.randint(1, 2)
-            self.monsters.append(Monster(x, y, hp))
+            enemy_type = random.choice(weak_types)
+            self.monsters.append(Monster(x, y, enemy_type))
     
     def update_monsters(self, maze: List[List[str]], current_time: int):
         """
