@@ -16,9 +16,10 @@ from PixelArtAssets import RoomIcons, PixelArtRenderer
 
 
 class PixelEditorLoader:
-    """Loading screen for pixel art editor (same as game's loader)"""
+    """Loading screen for pixel art editor with animated progress bar."""
     
     def __init__(self):
+        """Initialize the loader with default settings."""
         self.loading = True
         self.progress = 0
         self.max_progress = 100
@@ -26,8 +27,9 @@ class PixelEditorLoader:
         self.frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
         self.current_frame = 0
         self.status_text = "Initializing..."
-        
+    
     def animate(self):
+        """Display animated loading bar with spinner."""
         print("\n" * 2)
         while self.loading:
             filled = int(self.bar_width * self.progress / self.max_progress)
@@ -38,19 +40,22 @@ class PixelEditorLoader:
             sys.stdout.flush()
             self.current_frame += 1
             time.sleep(0.1)
-        
+    
     def start(self):
+        """Start the loading animation in a background thread."""
         self.loading = True
         self.progress = 0
         thread = threading.Thread(target=self.animate)
         thread.daemon = True
         thread.start()
     
-    def update_progress(self, progress, status="Loading..."):
+    def update_progress(self, progress: int, status: str = "Loading..."):
+        """Update the progress bar with new value and status."""
         self.progress = min(progress, self.max_progress)
         self.status_text = status
-        
+    
     def stop(self):
+        """Complete the loading animation."""
         self.progress = self.max_progress
         self.status_text = "Complete!"
         time.sleep(0.2)
@@ -152,13 +157,13 @@ class PixelArtEditor:
         room_colors = RoomIcons.get_colors(room_icon, dimmed=False)
         
         # Create a complete palette combining room-specific colors with general colors
-        display_colors = {
+        display_colors: Dict[int, Tuple[int, int, int, int]] = {
             0: (0, 0, 0, 0),        # Transparent - always same
         }
         
-        # Add room-specific colors (these override the defaults for active pixels)
+        # Add room-specific colors (convert RGB to RGBA)
         for pixel_val, color in room_colors.items():
-            display_colors[pixel_val] = color
+            display_colors[pixel_val] = color if len(color) == 4 else (*color, 255)
         
         # Fill remaining slots with expanded color palette for editing flexibility
         general_colors = {
@@ -196,7 +201,8 @@ class PixelArtEditor:
         
         for pixel_val, color in general_colors.items():
             if pixel_val not in display_colors:
-                display_colors[pixel_val] = color
+                # Convert RGB to RGBA
+                display_colors[pixel_val] = color if len(color) == 4 else (*color, 255)
                 
         return display_colors
     
