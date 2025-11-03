@@ -11,7 +11,7 @@
 pygame>=2.5.0
 
 # Optional Dependencies (for future expansion):
-# numpy>=1.21.0        # For advanced mathematical operations
-# pillow>=8.0.0        # For image processing and texture generation
-# pydub>=0.25.0        # For audio file processing
-# pygame-menu>=4.0.0   # For enhanced menu systems
+# numpy>=1.21.0        # Advanced mathematical operations
+# pillow>=8.0.0        # Image processing and texture generation
+# pydub>=0.25.0        # Audio file processing
+# pygame-menu>=4.0.0   # Enhanced menu systems
