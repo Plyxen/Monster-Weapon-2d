@@ -1,11 +1,17 @@
+"""Game loader with animated loading screen for Monster-Weapon-2d"""
+
 import sys
 import os
 import warnings
 import time
 import threading
 
+
 class GameLoader:
+    """Displays an animated loading screen during game initialization."""
+    
     def __init__(self):
+        """Initialize the loader with default settings."""
         self.loading = True
         self.progress = 0
         self.max_progress = 100
@@ -15,6 +21,7 @@ class GameLoader:
         self.status_text = "Initializing..."
         
     def animate(self):
+        """Display animated loading bar with spinner."""
         print("\n" * 2)
         while self.loading:
             filled = int(self.bar_width * self.progress / self.max_progress)
@@ -25,19 +32,28 @@ class GameLoader:
             sys.stdout.flush()
             self.current_frame += 1
             time.sleep(0.1)
-        
+    
     def start(self):
+        """Start the loading animation in a background thread."""
         self.loading = True
         self.progress = 0
         thread = threading.Thread(target=self.animate)
         thread.daemon = True
         thread.start()
     
-    def update_progress(self, progress, status="Loading..."):
+    def update_progress(self, progress: int, status: str = "Loading..."):
+        """
+        Update the progress bar.
+        
+        Args:
+            progress: Progress value (0-100)
+            status: Status message to display
+        """
         self.progress = min(progress, self.max_progress)
         self.status_text = status
-        
+    
     def stop(self):
+        """Complete the loading animation and display success message."""
         self.progress = self.max_progress
         self.status_text = "Complete!"
         time.sleep(0.2)
