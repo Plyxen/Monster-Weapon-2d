@@ -1,25 +1,22 @@
 """Game Entities for Monster-Weapon-2d"""
 
-import pygame
 import math
+import random
 from typing import List, Optional
-from enum import Enum
+import pygame
+
 from GameConstants import *
-
-
-class EnemyType(Enum):
-    FLY = "fly"
-    GAPER = "gaper"
-    SHOOTER = "shooter"
-    TANK = "tank"
-    SPEEDY = "speedy"
-    CHARGER = "charger"
+from enums import ItemType, MonsterType as EnemyType
 
 
 class Obstacle:
-    """
-    Represents a rock or obstacle in a room that blocks movement and bullets.
-    """
+    """Represents a rock or obstacle in a room that blocks movement and bullets."""
+    
+    SIZE_MAP = {
+        "small": 20,
+        "medium": 30,
+        "large": 40
+    }
     
     def __init__(self, x: int, y: int, size: str = "medium"):
         """
@@ -33,14 +30,7 @@ class Obstacle:
         self.x = x
         self.y = y
         self.size = size
-        
-        # Visual size in pixels
-        if size == "small":
-            self.pixel_size = 20
-        elif size == "large":
-            self.pixel_size = 40
-        else:  # medium
-            self.pixel_size = 30
+        self.pixel_size = self.SIZE_MAP.get(size, 30)
 
 
 class Bullet:
@@ -123,32 +113,8 @@ class Bullet:
         return distance < (self.radius + entity_radius)
 
 
-class ItemType(Enum):
-    """
-    Enumeration of all collectible item types in the game.
-    
-    Each item type has specific properties and effects:
-    - TREASURE: Increases score and treasure count
-    - HEALTH_POTION: Restores player health points
-    - KEY: Opens locked doors to treasure rooms
-    - SWORD: Increases player attack damage
-    - SHIELD: Increases player defense rating
-    """
-    TREASURE = "TREASURE"
-    HEALTH_POTION = "POTION"
-    KEY = "KEY"
-    SWORD = "SWORD"
-    SHIELD = "SHIELD"
-
-
 class Item:
-    """
-    Represents a collectible item in the game world.
-    
-    Items are placed throughout the dungeon and provide various benefits
-    when collected by the player. Each item has a position, type, and value
-    that determines its effect.
-    """
+    """Represents a collectible item in the game world."""
     
     def __init__(self, x: int, y: int, item_type: ItemType, value: int = 1):
         """
@@ -291,56 +257,46 @@ class Monster:
             enemy_type = random.choice(list(EnemyType))
         self.enemy_type = enemy_type
         
-        # Set stats based on type using constants from GameConstants
-        if enemy_type == EnemyType.FLY:
-            self.speed = ENEMY_SPEED_FLY
-            self.hp = 1
-            self.max_hp = 1
-            self.size = 12
-            self.can_shoot = False
-            self.shoot_delay = 0
-            self.bullet_speed = 0
-        elif enemy_type == EnemyType.GAPER:
-            self.speed = ENEMY_SPEED_GAPER
-            self.hp = 3
-            self.max_hp = 3
-            self.size = 18
-            self.can_shoot = False
-            self.shoot_delay = 0
-            self.bullet_speed = 0
-        elif enemy_type == EnemyType.SHOOTER:
-            self.speed = ENEMY_SPEED_SHOOTER
-            self.hp = 2
-            self.max_hp = 2
-            self.size = 16
-            self.can_shoot = True
-            self.shoot_delay = ENEMY_SHOOT_COOLDOWN
-            self.bullet_speed = ENEMY_BULLET_SPEED
-        elif enemy_type == EnemyType.TANK:
-            self.speed = ENEMY_SPEED_TANK
-            self.hp = 6
-            self.max_hp = 6
-            self.size = 26
-            self.can_shoot = False
-            self.shoot_delay = 0
-            self.bullet_speed = 0
-        elif enemy_type == EnemyType.SPEEDY:
-            self.speed = ENEMY_SPEED_SPEEDY
-            self.hp = 1
-            self.max_hp = 1
-            self.size = 10
-            self.can_shoot = False
-            self.shoot_delay = 0
-            self.bullet_speed = 0
-        elif enemy_type == EnemyType.CHARGER:
-            self.speed = ENEMY_SPEED_CHARGER  # Base speed (increases when close)
-            self.hp = 4
-            self.max_hp = 4
-            self.size = 20
-            self.can_shoot = False
-            self.shoot_delay = 0
-            self.bullet_speed = 0
-            self.is_charging = False  # Track charging state for visual effect
+        # Enemy stats configuration map
+        ENEMY_STATS = {
+            EnemyType.FLY: {
+                'speed': ENEMY_SPEED_FLY, 'hp': 1, 'size': 12,
+                'can_shoot': False, 'bullet_speed': 0
+            },
+            EnemyType.GAPER: {
+                'speed': ENEMY_SPEED_GAPER, 'hp': 3, 'size': 18,
+                'can_shoot': False, 'bullet_speed': 0
+            },
+            EnemyType.SHOOTER: {
+                'speed': ENEMY_SPEED_SHOOTER, 'hp': 2, 'size': 16,
+                'can_shoot': True, 'bullet_speed': ENEMY_BULLET_SPEED
+            },
+            EnemyType.TANK: {
+                'speed': ENEMY_SPEED_TANK, 'hp': 6, 'size': 26,
+                'can_shoot': False, 'bullet_speed': 0
+            },
+            EnemyType.SPEEDY: {
+                'speed': ENEMY_SPEED_SPEEDY, 'hp': 1, 'size': 10,
+                'can_shoot': False, 'bullet_speed': 0
+            },
+            EnemyType.CHARGER: {
+                'speed': ENEMY_SPEED_CHARGER, 'hp': 4, 'size': 20,
+                'can_shoot': False, 'bullet_speed': 0
+            }
+        }
+        
+        # Apply stats from configuration
+        stats = ENEMY_STATS[enemy_type]
+        self.speed = stats['speed']
+        self.hp = stats['hp']
+        self.max_hp = stats['hp']
+        self.size = stats['size']
+        self.can_shoot = stats['can_shoot']
+        self.bullet_speed = stats['bullet_speed']
+        self.shoot_delay = ENEMY_SHOOT_COOLDOWN if self.can_shoot else 0
+        
+        # Charger-specific attribute
+        self.is_charging = False if enemy_type == EnemyType.CHARGER else None
         
         # Movement
         self.vel_x = 0.0
