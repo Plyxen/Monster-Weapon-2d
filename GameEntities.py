@@ -607,9 +607,18 @@ class Player:
             direction_x /= length
             direction_y /= length
         
-        # Create bullet at player center (in pixels)
+        # Create bullet velocity with base tear speed
         vel_x = direction_x * self.tear_speed
         vel_y = direction_y * self.tear_speed
+        
+        # Add player movement velocity to bullet velocity for momentum effect
+        # Convert player velocity from cells/frame to pixels/frame (multiply by cell_size)
+        from GameConstants import DEFAULT_CELL_SIZE
+        player_vel_x_pixels = self.vel_x * DEFAULT_CELL_SIZE
+        player_vel_y_pixels = self.vel_y * DEFAULT_CELL_SIZE
+        
+        vel_x += player_vel_x_pixels
+        vel_y += player_vel_y_pixels
         
         self.last_shot_time = current_frame
         return Bullet(self.real_x, self.real_y, vel_x, vel_y, self.tear_damage, is_enemy=False)
