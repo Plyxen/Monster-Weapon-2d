@@ -72,33 +72,49 @@ CORRIDOR_ITEM_DENSITY = 20
 TREASURE_MONSTER_DENSITY = 8
 MAIN_MONSTER_DENSITY = 12
 CORRIDOR_MONSTER_DENSITY = 8
+# Font Sizes
 FONT_SIZE_LARGE = 48
 FONT_SIZE_NORMAL = 28
 FONT_SIZE_SMALL = 20
 FONT_SIZE_TINY = 18
 FONT_SIZE_MINI = 16
+
+# Color Palette - RGB tuples
 COLORS = {
+    # Grayscale
     'BLACK': (0, 0, 0),
     'WHITE': (255, 255, 255),
     'GRAY': (128, 128, 128),
     'DARK_GRAY': (64, 64, 64),
     'LIGHT_GRAY': (192, 192, 192),
+    'SILVER': (192, 192, 192),
+    
+    # Browns
     'BROWN': (139, 69, 19),
     'DARK_BROWN': (101, 67, 33),
+    
+    # Greens
     'GREEN': (0, 255, 0),
     'DARK_GREEN': (0, 100, 0),
     'LIGHT_GREEN': (144, 238, 144),
+    'LIME': (50, 205, 50),
+    
+    # Reds
     'RED': (255, 0, 0),
     'LIGHT_RED': (255, 102, 102),
+    
+    # Primary Colors
     'BLUE': (0, 0, 255),
     'YELLOW': (255, 255, 0),
+    
+    # Secondary Colors
     'PURPLE': (128, 0, 128),
     'ORANGE': (255, 165, 0),
-    'GOLD': (255, 215, 0),
     'CYAN': (0, 255, 255),
     'MAGENTA': (255, 0, 255),
-    'LIME': (50, 205, 50),
-    'SILVER': (192, 192, 192),
+    
+    # Special
+    'GOLD': (255, 215, 0),
 }
 
 WALL_COLOR = COLORS['DARK_GRAY']
