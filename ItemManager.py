@@ -1,12 +1,62 @@
 """Item Manager for Monster-Weapon-2d"""
 
 import random
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from GameEntities import Item, ItemType, Room
 from GameConstants import *
 
 
 class ItemManager:
+    """Manages item generation and placement in the dungeon."""
+    
+    # Item value ranges by type and room
+    ITEM_VALUES: Dict[ItemType, Dict[str, Tuple[int, int]]] = {
+        ItemType.TREASURE: {
+            'treasure': (100, 300),
+            'key': (30, 80),
+            'main': (20, 60),
+            'corridor': (5, 20)
+        },
+        ItemType.HEALTH_POTION: {
+            'treasure': (40, 80),
+            'key': (25, 50),
+            'main': (20, 40),
+            'corridor': (10, 25)
+        },
+        ItemType.SWORD: {
+            'treasure': (3, 6),
+            'key': (1, 3),
+            'main': (1, 2),
+            'corridor': (1, 2)
+        },
+        ItemType.SHIELD: {
+            'treasure': (3, 5),
+            'key': (1, 3),
+            'main': (1, 2),
+            'corridor': (1, 2)
+        }
+    }
+    
+    # Item spawn weights by room type
+    TREASURE_ROOM_WEIGHTS = {
+        'types': [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD, ItemType.HEALTH_POTION],
+        'weights': [5, 3, 2, 2]
+    }
+    
+    MAIN_ROOM_WEIGHTS = {
+        'types': [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD],
+        'weights': [3, 3, 1, 1]
+    }
+    
+    CORRIDOR_WEIGHTS = {
+        'types': [ItemType.TREASURE, ItemType.HEALTH_POTION],
+        'weights': [2, 1]
+    }
+    
+    KEY_ROOM_WEIGHTS = {
+        'types': [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD],
+        'weights': [4, 2, 1, 1]
+    }
     
     def __init__(self):
         """Initialize the item manager."""
@@ -84,10 +134,8 @@ class ItemManager:
         random.shuffle(treasure_room_positions)
         
         for x, y in treasure_room_positions[:len(treasure_room_positions)//TREASURE_ITEM_DENSITY]:
-            item_types = [ItemType.TREASURE, ItemType.SWORD, ItemType.SHIELD, ItemType.HEALTH_POTION]
-            weights = [5, 3, 2, 2]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
+            config = self.TREASURE_ROOM_WEIGHTS
+            item_type = random.choices(config['types'], weights=config['weights'])[0]
             value = self._get_item_value(item_type, 'treasure')
             self.items.append(Item(x, y, item_type, value))
     
@@ -101,10 +149,8 @@ class ItemManager:
         for i in range(min(item_count, len(available_positions))):
             x, y = available_positions[i]
             
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD]
-            weights = [3, 3, 1, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
+            config = self.MAIN_ROOM_WEIGHTS
+            item_type = random.choices(config['types'], weights=config['weights'])[0]
             value = self._get_item_value(item_type, 'main')
             self.items.append(Item(x, y, item_type, value))
     
@@ -116,10 +162,8 @@ class ItemManager:
         for i in range(min(item_count, len(corridor_positions))):
             x, y = corridor_positions[i]
             
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION]
-            weights = [2, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
+            config = self.CORRIDOR_WEIGHTS
+            item_type = random.choices(config['types'], weights=config['weights'])[0]
             value = self._get_item_value(item_type, 'corridor')
             self.items.append(Item(x, y, item_type, value))
     
@@ -133,51 +177,25 @@ class ItemManager:
         for i in range(min(item_count, len(available_positions))):
             x, y = available_positions[i]
             
-            item_types = [ItemType.TREASURE, ItemType.HEALTH_POTION, ItemType.SWORD, ItemType.SHIELD]
-            weights = [4, 2, 1, 1]
-            item_type = random.choices(item_types, weights=weights)[0]
-            
+            config = self.KEY_ROOM_WEIGHTS
+            item_type = random.choices(config['types'], weights=config['weights'])[0]
             value = self._get_item_value(item_type, 'key')
             self.items.append(Item(x, y, item_type, value))
     
     def _get_item_value(self, item_type: ItemType, room_type: str) -> int:
-        """Get appropriate value for item based on type and room."""
-        if item_type == ItemType.TREASURE:
-            if room_type == 'treasure':
-                return random.randint(100, 300)
-            elif room_type == 'key':
-                return random.randint(30, 80)
-            elif room_type == 'main':
-                return random.randint(20, 60)
-            else:  # corridor
-                return random.randint(5, 20)
+        """
+        Get appropriate value for item based on type and room.
         
-        elif item_type == ItemType.HEALTH_POTION:
-            if room_type == 'treasure':
-                return random.randint(40, 80)
-            elif room_type == 'key':
-                return random.randint(25, 50)
-            elif room_type == 'main':
-                return random.randint(20, 40)
-            else:  # corridor
-                return random.randint(10, 25)
-        
-        elif item_type == ItemType.SWORD:
-            if room_type == 'treasure':
-                return random.randint(3, 6)
-            elif room_type == 'key':
-                return random.randint(1, 3)
-            else:  # main
-                return random.randint(1, 2)
-        
-        elif item_type == ItemType.SHIELD:
-            if room_type == 'treasure':
-                return random.randint(3, 5)
-            elif room_type == 'key':
-                return random.randint(1, 3)
-            else:  # main
-                return random.randint(1, 2)
-        
+        Args:
+            item_type: Type of item
+            room_type: Type of room ('treasure', 'key', 'main', 'corridor')
+            
+        Returns:
+            Randomized value within range for the item type and room
+        """
+        if item_type in self.ITEM_VALUES and room_type in self.ITEM_VALUES[item_type]:
+            min_val, max_val = self.ITEM_VALUES[item_type][room_type]
+            return random.randint(min_val, max_val)
         return 1
     
     def collect_item(self, item: Item, player) -> bool:
