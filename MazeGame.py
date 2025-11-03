@@ -108,7 +108,14 @@ class EnhancedMazeGame:
         self.game_won = False
         self.game_over = False
         
-
+        # ---- Debug System ----
+        self.debug_enabled = False  # Toggle with F3
+        self.debug_input = {
+            'w': False, 'a': False, 's': False, 'd': False,
+            'i': False, 'j': False, 'k': False, 'l': False,
+            'up': False, 'down': False, 'left': False, 'right': False,
+            'kp8': False, 'kp2': False, 'kp4': False, 'kp6': False
+        }
         
         # ---- Font Resources for UI ----
         self.font = pygame.font.Font(None, FONT_SIZE_NORMAL)     # Standard text
@@ -122,6 +129,15 @@ class EnhancedMazeGame:
         # ---- Audio System ----
         self.sounds_enabled = False                # Placeholder for future expansion
         
+        # Print startup help
+        print("\n" + "="*50)
+        print("🎮 GAME CONTROLS:")
+        print("  Movement: WASD / IJKL / Numpad 8246")
+        print("  Shooting: Arrow Keys (4 directions)")
+        print("  Debug: F3 (toggle debug panel)")
+        print("  Help: F1 (show controls)")
+        print("="*50 + "\n")
+    
     # ---- DUNGEON GENERATION METHODS ----
     
     def generate_new_maze(self):
@@ -1010,7 +1026,18 @@ class EnhancedMazeGame:
                 elif event.key == pygame.K_r and (self.game_won or self.game_over):
                     self.generate_new_maze()
                 
-
+                elif event.key == pygame.K_F3:
+                    # Toggle debug mode
+                    self.debug_enabled = not self.debug_enabled
+                    print(f"🐛 Debug mode: {'ON' if self.debug_enabled else 'OFF'}")
+                
+                elif event.key == pygame.K_F1:
+                    # Show control help
+                    print("📋 Controls:")
+                    print("  Movement: WASD / IJKL / Numpad 8246")
+                    print("  Shooting: Arrow Keys (4 directions)")
+                    print("  F3: Toggle Debug")
+                    print("  F1: Show Controls")
                 
                 else:
                     # Key presses still handled for instant response
@@ -1020,7 +1047,24 @@ class EnhancedMazeGame:
         if not self.game_over and not self.camera.lock_player_during_transition:
             keys = pygame.key.get_pressed()
             
-
+            # Track raw key states for debug
+            if self.debug_enabled:
+                self.debug_input['w'] = keys[pygame.K_w]
+                self.debug_input['a'] = keys[pygame.K_a]
+                self.debug_input['s'] = keys[pygame.K_s]
+                self.debug_input['d'] = keys[pygame.K_d]
+                self.debug_input['i'] = keys[pygame.K_i]
+                self.debug_input['j'] = keys[pygame.K_j]
+                self.debug_input['k'] = keys[pygame.K_k]
+                self.debug_input['l'] = keys[pygame.K_l]
+                self.debug_input['up'] = keys[pygame.K_UP]
+                self.debug_input['down'] = keys[pygame.K_DOWN]
+                self.debug_input['left'] = keys[pygame.K_LEFT]
+                self.debug_input['right'] = keys[pygame.K_RIGHT]
+                self.debug_input['kp8'] = keys[pygame.K_KP8]
+                self.debug_input['kp2'] = keys[pygame.K_KP2]
+                self.debug_input['kp4'] = keys[pygame.K_KP4]
+                self.debug_input['kp6'] = keys[pygame.K_KP6]
             
             # Calculate movement direction with anti-ghosting alternatives
             dx = 0
@@ -1057,7 +1101,10 @@ class EnhancedMazeGame:
             if keys[pygame.K_KP6]:  # Numpad 6 = right
                 dx += 1
             
-
+            # Debug: Track calculated movement direction
+            if self.debug_enabled:
+                self.debug_input['move_x'] = dx
+                self.debug_input['move_y'] = dy
             
             # Set player velocity based on input
             self.player.set_velocity(dx, dy)
@@ -1076,6 +1123,11 @@ class EnhancedMazeGame:
             elif keys[pygame.K_RIGHT]:
                 shoot_x = 1
             
+            # Debug: Track shooting direction
+            if self.debug_enabled:
+                self.debug_input['shoot_x'] = shoot_x
+                self.debug_input['shoot_y'] = shoot_y
+            
             # Shoot if arrow key pressed (single direction only)
             if shoot_x != 0 or shoot_y != 0:
                 bullet = self.player.shoot(shoot_x, shoot_y, self.frame_counter)
@@ -1087,8 +1139,17 @@ class EnhancedMazeGame:
             
             # Update player momentum and position with collision detection
             old_x, old_y = self.player.x, self.player.y
+            old_real_x, old_real_y = self.player.real_x, self.player.real_y
+            
             self.player.update_momentum()  # Apply Isaac-style acceleration
             self.player.update_position(self.maze, self)
+            
+            # Debug: Track position changes
+            if self.debug_enabled:
+                delta_x = self.player.real_x - old_real_x
+                delta_y = self.player.real_y - old_real_y
+                self.debug_input['delta_x'] = delta_x
+                self.debug_input['delta_y'] = delta_y
             
             # Check if player moved to a new grid cell
             if (self.player.x, self.player.y) != (old_x, old_y):
@@ -2791,6 +2852,224 @@ class EnhancedMazeGame:
             text_x = ui_x + 38 if icon else ui_x + 20
             legend_text = pygame.font.Font(None, FONT_SIZE_TINY).render(text, True, color)
             self.screen.blit(legend_text, (text_x, item_y))
+        
+        # ========== DEBUG PANEL (F3 to toggle) ==========
+        if self.debug_enabled:
+            debug_y = 10
+            debug_x = 10
+            
+            # Debug panel background
+            debug_rect = pygame.Rect(debug_x, debug_y, 350, 450)
+            pygame.draw.rect(self.screen, (0, 0, 0, 200), debug_rect)
+            pygame.draw.rect(self.screen, COLORS['CYAN'], debug_rect, 2)
+            
+            # Title
+            debug_title = self.font.render("DEBUG MODE (F3)", True, COLORS['CYAN'])
+            self.screen.blit(debug_title, (debug_x + 10, debug_y + 10))
+            
+            debug_y += 40
+            
+            # Section: RAW KEY STATES
+            section_title = self.small_font.render("RAW KEY STATES:", True, COLORS['YELLOW'])
+            self.screen.blit(section_title, (debug_x + 10, debug_y))
+            debug_y += 20
+            
+            # WASD keys
+            wasd_line = self.small_font.render(
+                f"WASD: W={int(self.debug_input.get('w', False))} "
+                f"A={int(self.debug_input.get('a', False))} "
+                f"S={int(self.debug_input.get('s', False))} "
+                f"D={int(self.debug_input.get('d', False))}",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(wasd_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # IJKL keys
+            ijkl_line = self.small_font.render(
+                f"IJKL: I={int(self.debug_input.get('i', False))} "
+                f"J={int(self.debug_input.get('j', False))} "
+                f"K={int(self.debug_input.get('k', False))} "
+                f"L={int(self.debug_input.get('l', False))}",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(ijkl_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Arrow keys
+            arrow_line = self.small_font.render(
+                f"ARROWS: ↑={int(self.debug_input.get('up', False))} "
+                f"↓={int(self.debug_input.get('down', False))} "
+                f"←={int(self.debug_input.get('left', False))} "
+                f"→={int(self.debug_input.get('right', False))}",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(arrow_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Numpad keys
+            numpad_line = self.small_font.render(
+                f"NUMPAD: 8={int(self.debug_input.get('kp8', False))} "
+                f"2={int(self.debug_input.get('kp2', False))} "
+                f"4={int(self.debug_input.get('kp4', False))} "
+                f"6={int(self.debug_input.get('kp6', False))}",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(numpad_line, (debug_x + 15, debug_y))
+            debug_y += 25
+            
+            # Section: CALCULATED DIRECTIONS
+            section_title2 = self.small_font.render("CALCULATED DIRECTIONS:", True, COLORS['YELLOW'])
+            self.screen.blit(section_title2, (debug_x + 10, debug_y))
+            debug_y += 20
+            
+            # Movement direction
+            move_x = self.debug_input.get('move_x', 0)
+            move_y = self.debug_input.get('move_y', 0)
+            move_dir = "NONE"
+            if move_x != 0 or move_y != 0:
+                dirs = []
+                if move_y < 0:
+                    dirs.append("UP")
+                elif move_y > 0:
+                    dirs.append("DOWN")
+                if move_x < 0:
+                    dirs.append("LEFT")
+                elif move_x > 0:
+                    dirs.append("RIGHT")
+                move_dir = "+".join(dirs)
+            
+            move_line = self.small_font.render(
+                f"Movement: ({move_x}, {move_y}) = {move_dir}",
+                True, COLORS['LIME']
+            )
+            self.screen.blit(move_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Shooting direction
+            shoot_x = self.debug_input.get('shoot_x', 0)
+            shoot_y = self.debug_input.get('shoot_y', 0)
+            shoot_dir = "NONE"
+            if shoot_x != 0 or shoot_y != 0:
+                dirs = []
+                if shoot_y < 0:
+                    dirs.append("UP")
+                elif shoot_y > 0:
+                    dirs.append("DOWN")
+                if shoot_x < 0:
+                    dirs.append("LEFT")
+                elif shoot_x > 0:
+                    dirs.append("RIGHT")
+                shoot_dir = "+".join(dirs)
+            
+            shoot_line = self.small_font.render(
+                f"Shooting: ({shoot_x}, {shoot_y}) = {shoot_dir}",
+                True, COLORS['ORANGE']
+            )
+            self.screen.blit(shoot_line, (debug_x + 15, debug_y))
+            debug_y += 25
+            
+            # Section: PLAYER STATE
+            section_title3 = self.small_font.render("PLAYER STATE:", True, COLORS['YELLOW'])
+            self.screen.blit(section_title3, (debug_x + 10, debug_y))
+            debug_y += 20
+            
+            # Position
+            pos_line = self.small_font.render(
+                f"Position: ({self.player.real_x:.2f}, {self.player.real_y:.2f})",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(pos_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Velocity
+            vel_line = self.small_font.render(
+                f"Velocity: ({self.player.vel_x:.3f}, {self.player.vel_y:.3f})",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(vel_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Target velocity
+            target_vel_line = self.small_font.render(
+                f"Target Vel: ({self.player.target_vel_x:.2f}, {self.player.target_vel_y:.2f})",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(target_vel_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # Speed
+            speed = (self.player.vel_x**2 + self.player.vel_y**2)**0.5
+            speed_line = self.small_font.render(
+                f"Speed: {speed:.3f} / {self.player.max_speed:.2f}",
+                True, COLORS['WHITE']
+            )
+            self.screen.blit(speed_line, (debug_x + 15, debug_y))
+            debug_y += 25
+            
+            # Section: DIAGNOSTICS
+            section_title4 = self.small_font.render("DIAGNOSTICS:", True, COLORS['YELLOW'])
+            self.screen.blit(section_title4, (debug_x + 10, debug_y))
+            debug_y += 20
+            
+            # Check for potential ghosting
+            wasd_pressed = any([
+                self.debug_input.get('w', False),
+                self.debug_input.get('a', False),
+                self.debug_input.get('s', False),
+                self.debug_input.get('d', False)
+            ])
+            arrow_pressed = any([
+                self.debug_input.get('up', False),
+                self.debug_input.get('down', False),
+                self.debug_input.get('left', False),
+                self.debug_input.get('right', False)
+            ])
+            
+            if wasd_pressed and arrow_pressed and move_x == 0 and move_y == 0:
+                ghost_warning = self.small_font.render(
+                    "⚠ KEYBOARD GHOSTING DETECTED!",
+                    True, COLORS['RED']
+                )
+                self.screen.blit(ghost_warning, (debug_x + 15, debug_y))
+                debug_y += 18
+                
+                ghost_tip = pygame.font.Font(None, FONT_SIZE_TINY).render(
+                    "Use IJKL or Numpad instead",
+                    True, COLORS['YELLOW']
+                )
+                self.screen.blit(ghost_tip, (debug_x + 15, debug_y))
+                debug_y += 18
+            else:
+                ok_status = self.small_font.render(
+                    "✓ Input system OK",
+                    True, COLORS['LIME']
+                )
+                self.screen.blit(ok_status, (debug_x + 15, debug_y))
+                debug_y += 18
+            
+            # Frame counter
+            frame_line = pygame.font.Font(None, FONT_SIZE_TINY).render(
+                f"Frame: {self.frame_counter}",
+                True, COLORS['DARK_GRAY']
+            )
+            self.screen.blit(frame_line, (debug_x + 15, debug_y))
+            debug_y += 18
+            
+            # FPS
+            fps_line = pygame.font.Font(None, FONT_SIZE_TINY).render(
+                f"FPS: {int(self.clock.get_fps())}",
+                True, COLORS['DARK_GRAY']
+            )
+            self.screen.blit(fps_line, (debug_x + 15, debug_y))
+            debug_y += 25
+            
+            # Help text
+            help_text = pygame.font.Font(None, FONT_SIZE_TINY).render(
+                "Press F1 for control help",
+                True, COLORS['CYAN']
+            )
+            self.screen.blit(help_text, (debug_x + 15, debug_y))
         
         
         # Game status messages
