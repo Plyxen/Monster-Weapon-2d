@@ -549,10 +549,14 @@ class Player:
         self.real_x = float(start_x)
         self.real_y = float(start_y)
         
-        # Movement
-        self.speed = PLAYER_SPEED  # Movement speed (cells per frame)
-        self.vel_x = 0.0
+        # Movement (Isaac-style momentum system)
+        self.max_speed = PLAYER_SPEED  # Maximum speed (cells per frame)
+        self.acceleration = PLAYER_ACCELERATION  # Acceleration rate
+        self.friction = PLAYER_FRICTION  # Friction when no input
+        self.vel_x = 0.0  # Current velocity
         self.vel_y = 0.0
+        self.target_vel_x = 0.0  # Target velocity based on input
+        self.target_vel_y = 0.0
         
         self.prev_x = start_x  # Track previous position for entry door detection
         self.prev_y = start_y
@@ -611,14 +615,31 @@ class Player:
         vel_x = direction_x * self.tear_speed
         vel_y = direction_y * self.tear_speed
         
-        # Add player movement velocity to bullet velocity for momentum effect
-        # Convert player velocity from cells/frame to pixels/frame (multiply by cell_size)
-        from GameConstants import DEFAULT_CELL_SIZE
-        player_vel_x_pixels = self.vel_x * DEFAULT_CELL_SIZE
-        player_vel_y_pixels = self.vel_y * DEFAULT_CELL_SIZE
+        # Add player movement momentum to bullet velocity (Isaac-style)
+        # Convert player velocity from cells/frame to pixels/frame and apply momentum factor
+        from GameConstants import DEFAULT_CELL_SIZE, PLAYER_BULLET_MOMENTUM_FACTOR
+        player_momentum_x = self.vel_x * DEFAULT_CELL_SIZE * PLAYER_BULLET_MOMENTUM_FACTOR
+        player_momentum_y = self.vel_y * DEFAULT_CELL_SIZE * PLAYER_BULLET_MOMENTUM_FACTOR
         
-        vel_x += player_vel_x_pixels
-        vel_y += player_vel_y_pixels
+        vel_x += player_momentum_x
+        vel_y += player_momentum_y
+        
+        # Ensure bullets maintain minimum speed in their intended direction
+        # (Isaac-style: bullets never go completely backwards)
+        min_speed = self.tear_speed * 0.3  # Minimum 30% of base speed
+        
+        # Check if bullet would be too slow in shooting direction
+        bullet_speed = math.sqrt(vel_x * vel_x + vel_y * vel_y)
+        if bullet_speed < min_speed:
+            # Scale up to minimum speed while preserving direction
+            if bullet_speed > 0:
+                scale_factor = min_speed / bullet_speed
+                vel_x *= scale_factor
+                vel_y *= scale_factor
+            else:
+                # If completely cancelled out, use base speed in shoot direction
+                vel_x = direction_x * min_speed
+                vel_y = direction_y * min_speed
         
         self.last_shot_time = current_frame
         return Bullet(self.real_x, self.real_y, vel_x, vel_y, self.tear_damage, is_enemy=False)
@@ -630,7 +651,7 @@ class Player:
     
     def set_velocity(self, dx: float, dy: float):
         """
-        Set the player's movement velocity for smooth movement.
+        Set the player's target movement velocity (Isaac-style with acceleration).
         
         Args:
             dx: Horizontal direction (-1, 0, or 1)
@@ -643,8 +664,35 @@ class Player:
             dx /= length
             dy /= length
         
-        self.vel_x = dx * self.speed
-        self.vel_y = dy * self.speed
+        # Set target velocity instead of direct velocity
+        self.target_vel_x = dx * self.max_speed
+        self.target_vel_y = dy * self.max_speed
+    
+    def update_momentum(self):
+        """
+        Update player momentum with Isaac-style acceleration and friction.
+        Call this every frame to apply smooth movement.
+        """
+        import math
+        
+        # Apply acceleration toward target velocity
+        vel_diff_x = self.target_vel_x - self.vel_x
+        vel_diff_y = self.target_vel_y - self.vel_y
+        
+        # Accelerate toward target
+        self.vel_x += vel_diff_x * self.acceleration * 60  # Scale for frame rate independence
+        self.vel_y += vel_diff_y * self.acceleration * 60
+        
+        # Apply friction when no input (gradual slow down)
+        if self.target_vel_x == 0 and self.target_vel_y == 0:
+            self.vel_x *= self.friction
+            self.vel_y *= self.friction
+            
+            # Stop very small velocities to prevent jitter
+            if abs(self.vel_x) < 0.001:
+                self.vel_x = 0
+            if abs(self.vel_y) < 0.001:
+                self.vel_y = 0
     
     def update_position(self, maze: List[List[str]], game=None):
         """
