@@ -111,10 +111,16 @@ class EnhancedMazeGame:
         # ---- Debug System ----
         self.debug_enabled = False  # Toggle with F3
         self.debug_input = {
+            # Key states (boolean)
             'w': False, 'a': False, 's': False, 'd': False,
             'i': False, 'j': False, 'k': False, 'l': False,
             'up': False, 'down': False, 'left': False, 'right': False,
-            'kp8': False, 'kp2': False, 'kp4': False, 'kp6': False
+            'kp8': False, 'kp2': False, 'kp4': False, 'kp6': False,
+            # Movement/shooting direction (int)
+            'move_x': 0, 'move_y': 0,
+            'shoot_x': 0, 'shoot_y': 0,
+            # Position deltas (float)
+            'delta_x': 0.0, 'delta_y': 0.0
         }
         
         # ---- Font Resources for UI ----
@@ -477,73 +483,31 @@ class EnhancedMazeGame:
     def create_isaac_connection(self, dungeon, room1, room2, direction, 
         start_x, start_y, room_width, room_height, corridor_length):
         """Create a door connection between two adjacent rooms (no corridor - direct teleport)."""
-        if direction == 'N':  # North - connect top of room1 to bottom of room2
-            door_x = room1.centerx
-            door_y = room1.top - 1
+        
+        # Calculate door position based on direction
+        door_positions = {
+            'N': (room1.centerx, room1.top - 1),
+            'S': (room1.centerx, room1.bottom),
+            'E': (room1.right, room1.centery),
+            'W': (room1.left - 1, room1.centery)
+        }
+        
+        door_x, door_y = door_positions.get(direction, (0, 0))
+        
+        # Create door with bounds checking
+        if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
+            # Determine if door should be locked (treasure room requirement)
+            is_treasure_door = room1.room_type == 'treasure' or room2.room_type == 'treasure'
             
-            # NO corridor tiles - door is directly at room boundary
-            
-            # Create doors with bounds checking
-            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
-                    dungeon[door_y][door_x] = 'D'  # Locked door
-                    self.locked_doors.append((door_x, door_y))
-                else:
-                    dungeon[door_y][door_x] = 'O'  # Open door (changed from 'R')
-                    # Add door to BOTH rooms so both can control it
-                    room1.doors.append((door_x, door_y))
-                    room2.doors.append((door_x, door_y))
-                
-        elif direction == 'S':  # South
-            door_x = room1.centerx
-            door_y = room1.bottom
-            
-            # NO corridor tiles - door is directly at room boundary
-            
-            # Create doors with bounds checking  
-            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
-                    dungeon[door_y][door_x] = 'D'
-                    self.locked_doors.append((door_x, door_y))
-                else:
-                    dungeon[door_y][door_x] = 'O'  # Open door
-                    # Add door to BOTH rooms so both can control it
-                    room1.doors.append((door_x, door_y))
-                    room2.doors.append((door_x, door_y))
-                
-        elif direction == 'E':  # East
-            door_x = room1.right
-            door_y = room1.centery
-            
-            # NO corridor tiles - door is directly at room boundary
-            
-            # Create doors with bounds checking
-            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
-                    dungeon[door_y][door_x] = 'D'
-                    self.locked_doors.append((door_x, door_y))
-                else:
-                    dungeon[door_y][door_x] = 'O'  # Open door
-                    # Add door to BOTH rooms so both can control it
-                    room1.doors.append((door_x, door_y))
-                    room2.doors.append((door_x, door_y))
-                
-        elif direction == 'W':  # West
-            door_x = room1.left - 1
-            door_y = room1.centery
-            
-            # NO corridor tiles - door is directly at room boundary
-            
-            # Create doors with bounds checking
-            if 0 <= door_y < len(dungeon) and 0 <= door_x < len(dungeon[0]):
-                if room1.room_type == 'treasure' or room2.room_type == 'treasure':
-                    dungeon[door_y][door_x] = 'D'
-                    self.locked_doors.append((door_x, door_y))
-                else:
-                    dungeon[door_y][door_x] = 'O'  # Open door
-                    # Add door to BOTH rooms so both can control it
-                    room1.doors.append((door_x, door_y))
-                    room2.doors.append((door_x, door_y))
+            if is_treasure_door:
+                dungeon[door_y][door_x] = 'D'  # Locked door
+                self.locked_doors.append((door_x, door_y))
+            else:
+                dungeon[door_y][door_x] = 'O'  # Open door
+                # Add door to BOTH rooms so both can control it
+                room1.doors.append((door_x, door_y))
+                room2.doors.append((door_x, door_y))
+
 
 
     
@@ -1160,6 +1124,36 @@ class EnhancedMazeGame:
         
         return True
     
+    def _find_room_at_position(self, x: int, y: int):
+        """
+        Find which room (if any) contains the given position.
+        
+        Args:
+            x: X coordinate to check
+            y: Y coordinate to check
+            
+        Returns:
+            Room object if position is in a room, None otherwise
+        """
+        # Check all room types in priority order
+        room_lists = [
+            ('rooms', self.rooms) if hasattr(self, 'rooms') else None,
+            ('treasure_rooms', self.treasure_rooms) if hasattr(self, 'treasure_rooms') else None,
+            ('shop_rooms', self.shop_rooms) if hasattr(self, 'shop_rooms') else None,
+            ('secret_rooms', self.secret_rooms) if hasattr(self, 'secret_rooms') else None,
+            ('super_secret_rooms', self.super_secret_rooms) if hasattr(self, 'super_secret_rooms') else None,
+        ]
+        
+        for room_list in room_lists:
+            if room_list is None:
+                continue
+            _, rooms = room_list
+            for room in rooms:
+                if room.collidepoint(x, y):
+                    return room
+        
+        return None
+    
     def process_player_action(self):
         """
         Execute all game logic triggered by player movement.
@@ -1208,43 +1202,8 @@ class EnhancedMazeGame:
             x: Player's current X coordinate
             y: Player's current Y coordinate
         """
-        # Check which room the player is in
-        current_room = None
-        
-        # Check main rooms
-        if hasattr(self, 'rooms'):
-            for room in self.rooms:
-                if room.collidepoint(x, y):
-                    current_room = room
-                    break
-        
-        # Check treasure rooms
-        if not current_room and hasattr(self, 'treasure_rooms'):
-            for room in self.treasure_rooms:
-                if room.collidepoint(x, y):
-                    current_room = room
-                    break
-        
-        # Check key rooms
-        if not current_room and hasattr(self, 'shop_rooms'):
-            for room in self.shop_rooms:
-                if room.collidepoint(x, y):
-                    current_room = room
-                    break
-        
-        # Check secret rooms
-        if not current_room and hasattr(self, 'secret_rooms'):
-            for room in self.secret_rooms:
-                if room.collidepoint(x, y):
-                    current_room = room
-                    break
-        
-        # Check super secret rooms
-        if not current_room and hasattr(self, 'super_secret_rooms'):
-            for room in self.super_secret_rooms:
-                if room.collidepoint(x, y):
-                    current_room = room
-                    break
+        # Use helper method to find current room
+        current_room = self._find_room_at_position(x, y)
         
         # If in a room, reveal all floor tiles in that room AND its doors
         if current_room:
