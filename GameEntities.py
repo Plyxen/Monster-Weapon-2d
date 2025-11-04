@@ -33,84 +33,85 @@ class Obstacle:
         self.pixel_size = self.SIZE_MAP.get(size, 30)
 
 
-class Bullet:
+class SwordSwing:
     """
-    Represents a projectile (tear) fired by the player or enemies.
+    Represents a melee sword swing attack with animation and collision.
     """
     
-    def __init__(self, x: float, y: float, vel_x: float, vel_y: float, damage: int = 1, is_enemy: bool = False):
+    def __init__(self, x: float, y: float, direction_x: float, direction_y: float, damage: int = 2):
         """
-        Initialize a bullet.
+        Initialize a sword swing.
         
         Args:
-            x: Starting X position (pixel coordinates)
-            y: Starting Y position (pixel coordinates)
-            vel_x: X velocity
-            vel_y: Y velocity
+            x: Starting X position (player position)
+            y: Starting Y position (player position)
+            direction_x: X direction of swing (-1, 0, or 1)
+            direction_y: Y direction of swing (-1, 0, or 1)
             damage: Damage dealt on hit
-            is_enemy: True if fired by enemy, False if fired by player
         """
-        self.x = x
-        self.y = y
-        self.vel_x = vel_x
-        self.vel_y = vel_y
+        self.start_x = x
+        self.start_y = y
+        self.direction_x = direction_x
+        self.direction_y = direction_y
         self.damage = damage
-        self.is_enemy = is_enemy
-        self.radius = 4  # Bullet size in pixels
-        self.alive = True
+        self.active = True
+        
+        # Animation timing
+        self.duration = 20  # frames for complete swing
+        self.frame = 0
+        
+        # Swing arc properties
+        self.reach = 1.5  # cells of reach
+        self.width = 90  # degrees of swing arc
+        
+        # Hit tracking (prevent multiple hits on same enemy)
+        self.hit_entities = set()
     
     def update(self):
-        """Update bullet position."""
-        self.x += self.vel_x
-        self.y += self.vel_y
+        """Update swing animation."""
+        self.frame += 1
+        if self.frame >= self.duration:
+            self.active = False
     
-    def check_wall_collision(self, maze, cell_size):
-        """Check if bullet hit a wall or door."""
-        grid_x = int(self.x // cell_size)
-        grid_y = int(self.y // cell_size)
+    def get_swing_area(self):
+        """
+        Get the current swing area for collision detection.
+        Returns list of (x, y) grid positions covered by the swing.
+        """
+        if not self.active:
+            return []
         
-        if grid_y < 0 or grid_y >= len(maze) or grid_x < 0 or grid_x >= len(maze[0]):
-            return True
+        import math
         
-        cell = maze[grid_y][grid_x]
-        # Bullets stop at walls and all door types
-        return cell in [WALL, 'D', 'O', 'R']
-    
-    def check_room_boundary(self, current_room, cell_size) -> bool:
-        """Check if bullet left the current room."""
-        if not current_room:
-            return False
+        # Calculate swing progress (0.0 to 1.0)
+        progress = self.frame / self.duration
         
-        grid_x = int(self.x // cell_size)
-        grid_y = int(self.y // cell_size)
+        # Swing covers an arc in front of player
+        positions = []
         
-        # Check if bullet is outside room bounds
-        if not (current_room.left <= grid_x < current_room.right and
-                current_room.top <= grid_y < current_room.bottom):
-            return True
+        # Base angle from direction
+        if self.direction_x == 1 and self.direction_y == 0:  # East
+            base_angle = 0
+        elif self.direction_x == -1 and self.direction_y == 0:  # West
+            base_angle = math.pi
+        elif self.direction_x == 0 and self.direction_y == -1:  # North
+            base_angle = -math.pi / 2
+        elif self.direction_x == 0 and self.direction_y == 1:  # South
+            base_angle = math.pi / 2
+        else:
+            return []  # Invalid direction
         
-        return False
-    
-    def check_obstacle_collision(self, obstacles, cell_size) -> bool:
-        """Check if bullet hit an obstacle."""
-        for obstacle in obstacles:
-            obstacle_pixel_x = obstacle.x * cell_size + cell_size // 2
-            obstacle_pixel_y = obstacle.y * cell_size + cell_size // 2
-            
-            dx = self.x - obstacle_pixel_x
-            dy = self.y - obstacle_pixel_y
-            distance = math.sqrt(dx * dx + dy * dy)
-            
-            if distance < (self.radius + obstacle.pixel_size // 2):
-                return True
-        return False
-    
-    def check_entity_collision(self, entity_x: float, entity_y: float, entity_radius: float = 15) -> bool:
-        """Check if bullet hit an entity."""
-        dx = self.x - entity_x
-        dy = self.y - entity_y
-        distance = math.sqrt(dx * dx + dy * dy)
-        return distance < (self.radius + entity_radius)
+        # Swing arc positions
+        for r in [1.0, 1.5]:  # Two rings of reach
+            for angle_offset in [-math.pi/4, -math.pi/8, 0, math.pi/8, math.pi/4]:
+                angle = base_angle + angle_offset
+                x = self.start_x + r * math.cos(angle)
+                y = self.start_y + r * math.sin(angle)
+                grid_x = int(round(x))
+                grid_y = int(round(y))
+                positions.append((grid_x, grid_y))
+        
+        return positions
 
 
 class Item:
@@ -219,28 +220,19 @@ class Room:
 
 class Monster:
     """
-    Represents an enemy creature in the dungeon.
-    
-    Multiple enemy types with different stats and behaviors:
-    - FLY: Fast, weak, small (speed 0.12, HP 1, size 12)
-    - GAPER: Medium everything (speed 0.08, HP 3, size 18)
-    - SHOOTER: Slow, ranged (speed 0.05, HP 2, size 16, always shoots)
-    - TANK: Slow tank (speed 0.04, HP 6, size 26)
-    - SPEEDY: Very fast, fragile (speed 0.15, HP 1, size 10)
-    - CHARGER: Fast when close (speed 0.06-0.14, HP 4, size 20)
+    Represents a skeleton enemy with melee attacks and wind-up animations.
+    All enemies are now skeletons with the same behavior but different difficulty scaling.
     """
     
-    def __init__(self, x: int, y: int, enemy_type: Optional[EnemyType] = None):
+    def __init__(self, x: int, y: int, difficulty: int = 1):
         """
-        Create a new monster at the specified position.
+        Create a new skeleton monster at the specified position.
         
         Args:
             x: Initial grid X coordinate
             y: Initial grid Y coordinate
-            enemy_type: Type of enemy (randomly chosen if None)
+            difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
         """
-        import random
-        
         # Grid position (for collision detection)
         self.x = x
         self.y = y
@@ -252,51 +244,25 @@ class Monster:
         # Room containment - monsters stay in their spawn room
         self.spawn_room = None  # Set by the game when spawning
         
-        # Determine enemy type
-        if enemy_type is None:
-            enemy_type = random.choice(list(EnemyType))
-        self.enemy_type = enemy_type
+        # Skeleton stats based on difficulty
+        self.difficulty = difficulty
+        if difficulty == 1:  # Easy skeleton
+            self.speed = 0.04
+            self.hp = 2
+            self.damage = 1
+            self.size = 16
+        elif difficulty == 2:  # Medium skeleton
+            self.speed = 0.06
+            self.hp = 3
+            self.damage = 2
+            self.size = 18
+        else:  # Hard skeleton
+            self.speed = 0.08
+            self.hp = 4
+            self.damage = 3
+            self.size = 20
         
-        # Enemy stats configuration map
-        ENEMY_STATS = {
-            EnemyType.FLY: {
-                'speed': ENEMY_SPEED_FLY, 'hp': 1, 'size': 12,
-                'can_shoot': False, 'bullet_speed': 0
-            },
-            EnemyType.GAPER: {
-                'speed': ENEMY_SPEED_GAPER, 'hp': 3, 'size': 18,
-                'can_shoot': False, 'bullet_speed': 0
-            },
-            EnemyType.SHOOTER: {
-                'speed': ENEMY_SPEED_SHOOTER, 'hp': 2, 'size': 16,
-                'can_shoot': True, 'bullet_speed': ENEMY_BULLET_SPEED
-            },
-            EnemyType.TANK: {
-                'speed': ENEMY_SPEED_TANK, 'hp': 6, 'size': 26,
-                'can_shoot': False, 'bullet_speed': 0
-            },
-            EnemyType.SPEEDY: {
-                'speed': ENEMY_SPEED_SPEEDY, 'hp': 1, 'size': 10,
-                'can_shoot': False, 'bullet_speed': 0
-            },
-            EnemyType.CHARGER: {
-                'speed': ENEMY_SPEED_CHARGER, 'hp': 4, 'size': 20,
-                'can_shoot': False, 'bullet_speed': 0
-            }
-        }
-        
-        # Apply stats from configuration
-        stats = ENEMY_STATS[enemy_type]
-        self.speed = stats['speed']
-        self.hp = stats['hp']
-        self.max_hp = stats['hp']
-        self.size = stats['size']
-        self.can_shoot = stats['can_shoot']
-        self.bullet_speed = stats['bullet_speed']
-        self.shoot_delay = ENEMY_SHOOT_COOLDOWN if self.can_shoot else 0
-        
-        # Charger-specific attribute
-        self.is_charging = False if enemy_type == EnemyType.CHARGER else None
+        self.max_hp = self.hp
         
         # Movement
         self.vel_x = 0.0
@@ -308,12 +274,21 @@ class Monster:
         self.last_move_time = 0
         self.move_delay = MONSTER_MOVE_DELAY
         
-        # Shooting
-        self.shoot_cooldown = 0
+        # Attack system with wind-up
+        self.attack_state = "idle"  # "idle", "windup", "attacking", "cooldown"
+        self.attack_timer = 0
+        self.windup_duration = 45  # frames for wind-up (parry window)
+        self.attack_duration = 10  # frames for actual attack
+        self.cooldown_duration = 60  # frames before next attack
+        self.attack_range = 1.2  # cells
+        
+        # Visual effects
+        self.flash_timer = 0  # For damage flash
+        self.windup_flash = 0  # For windup warning flash
     
     def update_ai(self, player_x: float, player_y: float):
         """
-        Update monster AI based on enemy type.
+        Update skeleton AI - approaches player and attacks with wind-up.
         
         Args:
             player_x: Player's real X position
@@ -326,59 +301,83 @@ class Monster:
         dy = player_y - self.real_y
         distance = math.sqrt(dx * dx + dy * dy)
         
-        if distance < 0.1:  # Too close
-            self.vel_x = 0
-            self.vel_y = 0
-            return
+        # Update attack state machine
+        self.update_attack_state(distance)
         
-        # Different movement patterns by type
-        if self.enemy_type == EnemyType.FLY:
-            # Direct chase
-            self.vel_x = (dx / distance) * self.speed
-            self.vel_y = (dy / distance) * self.speed
-            
-        elif self.enemy_type == EnemyType.GAPER:
-            # Direct chase
-            self.vel_x = (dx / distance) * self.speed
-            self.vel_y = (dy / distance) * self.speed
-            
-        elif self.enemy_type == EnemyType.SHOOTER:
-            # Keep distance (kite player)
-            if distance < 5.0:  # Too close, back away
-                self.vel_x = -(dx / distance) * self.speed
-                self.vel_y = -(dy / distance) * self.speed
-            elif distance > 8.0:  # Too far, approach
+        # Movement behavior based on attack state
+        if self.attack_state == "idle":
+            # Chase player
+            if distance > 0.1:
                 self.vel_x = (dx / distance) * self.speed
                 self.vel_y = (dy / distance) * self.speed
-            else:  # Good distance, strafe
-                import random
-                if random.random() < 0.02:  # 2% chance to change direction
-                    self.vel_x = -dy / distance * self.speed  # Perpendicular
-                    self.vel_y = dx / distance * self.speed
-            
-        elif self.enemy_type == EnemyType.TANK:
-            # Slow direct chase
-            self.vel_x = (dx / distance) * self.speed
-            self.vel_y = (dy / distance) * self.speed
-            
-        elif self.enemy_type == EnemyType.SPEEDY:
-            # Zigzag approach
-            import math as m
-            angle_to_player = m.atan2(dy, dx)
-            zigzag_offset = m.sin(pygame.time.get_ticks() / 200) * 0.5
-            self.vel_x = m.cos(angle_to_player + zigzag_offset) * self.speed
-            self.vel_y = m.sin(angle_to_player + zigzag_offset) * self.speed
-            
-        elif self.enemy_type == EnemyType.CHARGER:
-            # Speed up when close and track charging state
-            charge_speed = self.speed
-            if distance < 6.0:  # Close range
-                charge_speed = ENEMY_SPEED_CHARGER_BOOST  # Faster when charging
-                self.is_charging = True
-            else:
-                self.is_charging = False
-            self.vel_x = (dx / distance) * charge_speed
-            self.vel_y = (dy / distance) * charge_speed
+        elif self.attack_state == "windup":
+            # Slow down during windup
+            self.vel_x *= 0.5
+            self.vel_y *= 0.5
+        elif self.attack_state == "attacking":
+            # Lunge forward during attack
+            if distance > 0.1:
+                lunge_speed = self.speed * 2
+                self.vel_x = (dx / distance) * lunge_speed
+                self.vel_y = (dy / distance) * lunge_speed
+        elif self.attack_state == "cooldown":
+            # Stop moving during cooldown
+            self.vel_x = 0
+            self.vel_y = 0
+    
+    def update_attack_state(self, distance_to_player):
+        """Update the attack state machine."""
+        self.attack_timer += 1
+        
+        if self.attack_state == "idle":
+            # Start attack if player is in range
+            if distance_to_player <= self.attack_range:
+                self.attack_state = "windup"
+                self.attack_timer = 0
+                self.windup_flash = self.windup_duration
+        
+        elif self.attack_state == "windup":
+            if self.attack_timer >= self.windup_duration:
+                self.attack_state = "attacking"
+                self.attack_timer = 0
+        
+        elif self.attack_state == "attacking":
+            if self.attack_timer >= self.attack_duration:
+                self.attack_state = "cooldown"
+                self.attack_timer = 0
+        
+        elif self.attack_state == "cooldown":
+            if self.attack_timer >= self.cooldown_duration:
+                self.attack_state = "idle"
+                self.attack_timer = 0
+        
+        # Update visual effects
+        if self.flash_timer > 0:
+            self.flash_timer -= 1
+        if self.windup_flash > 0:
+            self.windup_flash -= 1
+    
+    def get_attack_area(self):
+        """Get the positions that will be hit if this skeleton attacks now."""
+        if self.attack_state != "attacking":
+            return []
+        
+        # Attack hits adjacent cells
+        positions = []
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue  # Skip self position
+                positions.append((self.x + dx, self.y + dy))
+        
+        return positions
+    
+    def take_damage(self, damage: int):
+        """Take damage and flash red."""
+        self.hp -= damage
+        self.flash_timer = 10
+        if self.hp <= 0:
+            self.alive = False
     
     def update_position(self, maze, all_monsters, obstacles=[]):
         """
@@ -443,42 +442,6 @@ class Monster:
                 self.real_y = new_real_y
                 self.x = new_grid_x
                 self.y = new_grid_y
-    
-    def try_shoot(self, player_x: float, player_y: float, current_frame: int) -> Optional['Bullet']:
-        """
-        Try to shoot at the player.
-        
-        Args:
-            player_x: Player's real X position
-            player_y: Player's real Y position
-            current_frame: Current game frame counter
-            
-        Returns:
-            Bullet object if shot was fired, None otherwise
-        """
-        if not self.can_shoot:
-            return None
-        
-        if self.shoot_cooldown > 0:
-            self.shoot_cooldown -= 1
-            return None
-        
-        import math
-        
-        # Calculate direction to player
-        dx = player_x - self.real_x
-        dy = player_y - self.real_y
-        distance = math.sqrt(dx * dx + dy * dy)
-        
-        if distance < 0.1:
-            return None
-        
-        # Shoot toward player
-        vel_x = (dx / distance) * self.bullet_speed
-        vel_y = (dy / distance) * self.bullet_speed
-        
-        self.shoot_cooldown = self.shoot_delay
-        return Bullet(self.real_x, self.real_y, vel_x, vel_y, damage=1, is_enemy=True)
 
 
 class Player:
@@ -528,11 +491,18 @@ class Player:
         self.treasure = 0
         self.score = 0
         
-        # Shooting
-        self.tear_damage = 1
-        self.tear_speed = PLAYER_BULLET_SPEED  # Pixels per frame
-        self.fire_rate = PLAYER_SHOOT_COOLDOWN  # Frames between shots
-        self.last_shot_time = 0
+        # Sword combat
+        self.sword_damage = 2
+        self.sword_cooldown = 30  # Frames between sword swings
+        self.last_swing_time = 0
+        self.current_swing = None  # Active sword swing
+        
+        # Parry system
+        self.parry_duration = 15  # Frames parry is active
+        self.parry_cooldown = 60  # Frames before next parry
+        self.parry_timer = 0  # Current parry time remaining
+        self.parry_cooldown_timer = 0  # Cooldown timer
+        self.successful_parries = 0  # Track for scoring
         
         # Combat
         self.invincibility_frames = 0
@@ -542,9 +512,9 @@ class Player:
         self.damage_flash = 0
         self.heal_flash = 0
     
-    def shoot(self, direction_x: float, direction_y: float, current_frame: int) -> Optional['Bullet']:
+    def swing_sword(self, direction_x: float, direction_y: float, current_frame: int) -> Optional['SwordSwing']:
         """
-        Shoot a tear in the specified direction.
+        Swing sword in the specified direction.
         
         Args:
             direction_x: Horizontal direction (-1, 0, or 1)
@@ -552,53 +522,57 @@ class Player:
             current_frame: Current game frame counter
             
         Returns:
-            Bullet object if shot was fired, None if on cooldown
+            SwordSwing object if swing was performed, None if on cooldown
         """
-        if current_frame - self.last_shot_time < self.fire_rate:
+        if current_frame - self.last_swing_time < self.sword_cooldown:
             return None
         
         if direction_x == 0 and direction_y == 0:
             return None
         
-        # Normalize diagonal shots
-        import math
+        # Only allow cardinal directions (no diagonals)
         if direction_x != 0 and direction_y != 0:
-            length = math.sqrt(direction_x * direction_x + direction_y * direction_y)
-            direction_x /= length
-            direction_y /= length
+            return None
         
-        # Create bullet velocity with base tear speed
-        vel_x = direction_x * self.tear_speed
-        vel_y = direction_y * self.tear_speed
+        self.last_swing_time = current_frame
+        swing = SwordSwing(self.real_x, self.real_y, direction_x, direction_y, self.sword_damage)
+        self.current_swing = swing
+        return swing
+    
+    def try_parry(self, current_frame: int) -> bool:
+        """
+        Attempt to parry incoming attacks.
         
-        # Add player movement momentum to bullet velocity (Isaac-style)
-        # Convert player velocity from cells/frame to pixels/frame and apply momentum factor
-        from GameConstants import DEFAULT_CELL_SIZE, PLAYER_BULLET_MOMENTUM_FACTOR
-        player_momentum_x = self.vel_x * DEFAULT_CELL_SIZE * PLAYER_BULLET_MOMENTUM_FACTOR
-        player_momentum_y = self.vel_y * DEFAULT_CELL_SIZE * PLAYER_BULLET_MOMENTUM_FACTOR
+        Args:
+            current_frame: Current game frame counter
+            
+        Returns:
+            bool: True if parry was activated, False if on cooldown
+        """
+        if self.parry_cooldown_timer > 0:
+            return False
         
-        vel_x += player_momentum_x
-        vel_y += player_momentum_y
+        self.parry_timer = self.parry_duration
+        self.parry_cooldown_timer = self.parry_cooldown
+        return True
+    
+    def is_parrying(self) -> bool:
+        """Check if player is currently parrying."""
+        return self.parry_timer > 0
+    
+    def update_combat(self):
+        """Update combat timers and active swing."""
+        # Update parry timers
+        if self.parry_timer > 0:
+            self.parry_timer -= 1
+        if self.parry_cooldown_timer > 0:
+            self.parry_cooldown_timer -= 1
         
-        # Ensure bullets maintain minimum speed in their intended direction
-        # (Isaac-style: bullets never go completely backwards)
-        min_speed = self.tear_speed * 0.3  # Minimum 30% of base speed
-        
-        # Check if bullet would be too slow in shooting direction
-        bullet_speed = math.sqrt(vel_x * vel_x + vel_y * vel_y)
-        if bullet_speed < min_speed:
-            # Scale up to minimum speed while preserving direction
-            if bullet_speed > 0:
-                scale_factor = min_speed / bullet_speed
-                vel_x *= scale_factor
-                vel_y *= scale_factor
-            else:
-                # If completely cancelled out, use base speed in shoot direction
-                vel_x = direction_x * min_speed
-                vel_y = direction_y * min_speed
-        
-        self.last_shot_time = current_frame
-        return Bullet(self.real_x, self.real_y, vel_x, vel_y, self.tear_damage, is_enemy=False)
+        # Update sword swing
+        if self.current_swing and self.current_swing.active:
+            self.current_swing.update()
+            if not self.current_swing.active:
+                self.current_swing = None
     
     def update_invincibility(self):
         """Update invincibility timer."""
@@ -878,8 +852,14 @@ class Player:
         
         return False
     
-    def take_damage(self, damage: int):
-        """Apply damage to the player with defense calculation."""
+    def take_damage(self, damage: int, can_be_parried: bool = True):
+        """Apply damage to the player with defense calculation and parry checking."""
+        # Check parry first
+        if can_be_parried and self.is_parrying():
+            self.successful_parries += 1
+            self.score += 50  # Bonus for successful parry
+            return 0  # No damage taken
+        
         # Check invincibility frames
         if self.invincibility_frames > 0:
             return 0
