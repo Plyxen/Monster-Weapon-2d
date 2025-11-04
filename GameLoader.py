@@ -94,7 +94,7 @@ if __name__ == "__main__":
         
         loader.stop()
         
-        print("  Controls: WASD/Arrow Keys - Move | ESC - Quit | R - Restart")
+        print("  Controls: WASD/Arrow Keys - Move | Arrow Keys - Sword Attack | F - Parry | ESC - Quit | R - Restart")
         print("\n  Starting game...\n")
         time.sleep(0.5)
         
