@@ -25,7 +25,7 @@ from typing import Tuple, List, Optional
 
 # Import constants and entities from modular files
 from GameConstants import *
-from GameEntities import ItemType, Item, Room, Monster, Player, Camera, Bullet, EnemyType, Obstacle
+from GameEntities import ItemType, Item, Room, Monster, Player, Camera, SwordSwing, EnemyType, Obstacle
 from PixelArtAssets import PixelArtRenderer
 
 # Initialize Pygame
@@ -89,7 +89,7 @@ class EnhancedMazeGame:
         self.items = []
         self.monsters = []
         self.locked_doors = []
-        self.bullets = []  # Player and enemy bullets
+        # No bullets needed for melee combat
         self.obstacles = []  # Room obstacles/rocks
         self.frame_counter = 0  # For fire rate timing
         
@@ -139,7 +139,8 @@ class EnhancedMazeGame:
         print("\n" + "="*50)
         print("🎮 GAME CONTROLS:")
         print("  Movement: WASD / IJKL / Numpad 8246")
-        print("  Shooting: Arrow Keys (4 directions)")
+        print("  Sword Combat: Arrow Keys (4 directions)")
+        print("  Parry: F key (block enemy attacks)")
         print("  Debug: F3 (toggle debug panel)")
         print("  Help: F1 (show controls)")
         print("="*50 + "\n")
@@ -933,8 +934,10 @@ class EnhancedMazeGame:
             if distance < MIN_ENEMY_SPAWN_DISTANCE:
                 continue
             
-            # Create random enemy type for variety
-            monster = Monster(x, y)
+            # Create skeleton with random difficulty
+            import random
+            difficulty = random.randint(1, 3)  # 1=easy, 2=medium, 3=hard
+            monster = Monster(x, y, difficulty)
             monster.spawn_room = room  # Lock monster to this room
             self.monsters.append(monster)
             room.monsters_in_room.append(monster)
@@ -999,7 +1002,8 @@ class EnhancedMazeGame:
                     # Show control help
                     print("📋 Controls:")
                     print("  Movement: WASD / IJKL / Numpad 8246")
-                    print("  Shooting: Arrow Keys (4 directions)")
+                    print("  Sword Combat: Arrow Keys (4 directions)")
+                    print("  Parry: F key (block enemy attacks)")
                     print("  F3: Toggle Debug")
                     print("  F1: Show Controls")
                 
@@ -1073,33 +1077,33 @@ class EnhancedMazeGame:
             # Set player velocity based on input
             self.player.set_velocity(dx, dy)
             
-            # Shooting with arrow keys (4-direction only, no diagonals)
-            shoot_x = 0
-            shoot_y = 0
+            # Sword attack with arrow keys (4-direction only, no diagonals)
+            attack_x = 0
+            attack_y = 0
             
             # Priority system: vertical takes precedence over horizontal to prevent diagonals
             if keys[pygame.K_UP]:
-                shoot_y = -1
+                attack_y = -1
             elif keys[pygame.K_DOWN]:
-                shoot_y = 1
+                attack_y = 1
             elif keys[pygame.K_LEFT]:
-                shoot_x = -1
+                attack_x = -1
             elif keys[pygame.K_RIGHT]:
-                shoot_x = 1
+                attack_x = 1
             
-            # Debug: Track shooting direction
+            # Debug: Track attack direction
             if self.debug_enabled:
-                self.debug_input['shoot_x'] = shoot_x
-                self.debug_input['shoot_y'] = shoot_y
+                self.debug_input['shoot_x'] = attack_x  # Keep same debug field name
+                self.debug_input['shoot_y'] = attack_y
             
-            # Shoot if arrow key pressed (single direction only)
-            if shoot_x != 0 or shoot_y != 0:
-                bullet = self.player.shoot(shoot_x, shoot_y, self.frame_counter)
-                if bullet:
-                    # Convert grid position to pixel position for bullet
-                    bullet.x = self.player.real_x * self.cell_size + self.cell_size // 2
-                    bullet.y = self.player.real_y * self.cell_size + self.cell_size // 2
-                    self.bullets.append(bullet)
+            # Attack if arrow key pressed (single direction only)
+            if attack_x != 0 or attack_y != 0:
+                swing = self.player.swing_sword(attack_x, attack_y, self.frame_counter)
+                # Swing is stored in player.current_swing automatically
+            
+            # Parry with F key
+            if keys[pygame.K_f]:
+                self.player.try_parry(self.frame_counter)
             
             # Update player momentum and position with collision detection
             old_x, old_y = self.player.x, self.player.y
@@ -1324,48 +1328,33 @@ class EnhancedMazeGame:
     
     def update_monsters(self):
         """
-        Execute AI behavior for all living monsters.
+        Execute AI behavior for all living skeleton monsters.
         
         AI Behavior:
-        - Chase Player: Monsters always move toward player
-        - Shooting: Some monsters shoot projectiles at player
+        - Chase Player: Skeletons move toward player
+        - Melee Attacks: Skeletons attack with wind-up animations
         - Collision Avoidance: Won't move into walls or other enemies
         
-        This creates Isaac-style challenging combat.
+        This creates challenging melee combat with parry opportunities.
         """
         for monster in self.monsters:
             if not monster.alive:
                 continue
             
-            # Update AI to chase player
+            # Update AI to chase player and manage attack states
             monster.update_ai(self.player.real_x, self.player.real_y)
             
             # Update monster position with collision (including obstacles)
             monster.update_position(self.maze, self.monsters, self.obstacles)
             
-            # Try to shoot at player
-            if monster.can_shoot:
-                bullet = monster.try_shoot(self.player.real_x, self.player.real_y, self.frame_counter)
-                if bullet:
-                    # Convert grid position to pixel position
-                    bullet.x = monster.real_x * self.cell_size + self.cell_size // 2
-                    bullet.y = monster.real_y * self.cell_size + self.cell_size // 2
-                    self.bullets.append(bullet)
-            
-            # Contact damage to player
-            player_pixel_x = self.player.real_x * self.cell_size + self.cell_size // 2
-            player_pixel_y = self.player.real_y * self.cell_size + self.cell_size // 2
-            monster_pixel_x = monster.real_x * self.cell_size + self.cell_size // 2
-            monster_pixel_y = monster.real_y * self.cell_size + self.cell_size // 2
-            
-            import math
-            dx = player_pixel_x - monster_pixel_x
-            dy = player_pixel_y - monster_pixel_y
-            distance = math.sqrt(dx * dx + dy * dy)
-            
-            collision_radius = (monster.size + 24) / 2.0  # monster size + player size
-            if distance < collision_radius:  # Collision radius based on size
-                self.player.take_damage(1)
+            # Check if monster is attacking and hits player
+            if monster.attack_state == "attacking":
+                attack_positions = monster.get_attack_area()
+                player_pos = (int(round(self.player.real_x)), int(round(self.player.real_y)))
+                
+                if player_pos in attack_positions:
+                    # Monster hits player - can be parried
+                    self.player.take_damage(monster.damage, can_be_parried=True)
     
     def _update_room_doors(self):
         """Update door states based on whether rooms have living monsters."""
@@ -1448,8 +1437,8 @@ class EnhancedMazeGame:
             # Update monsters with AI
             self.update_monsters()
             
-            # Update bullets
-            self.update_bullets()
+            # Update sword combat
+            self.update_combat()
             
             # Update door states based on room clearing
             self._update_room_doors()
@@ -1474,58 +1463,32 @@ class EnhancedMazeGame:
             current_room=self.current_room
         )
     
-    def update_bullets(self):
-        """Update all bullets and handle collisions."""
-        cell_size = self.cell_size
+    def update_combat(self):
+        """Update sword combat and handle melee attacks."""
+        # Update player combat state
+        self.player.update_combat()
         
-        for bullet in self.bullets[:]:  # Iterate over copy
-            bullet.update()
+        # Handle player sword attacks
+        if self.player.current_swing and self.player.current_swing.active:
+            swing_positions = self.player.current_swing.get_swing_area()
             
-            # Check wall collision
-            if bullet.check_wall_collision(self.maze, cell_size):
-                bullet.alive = False
-                self.bullets.remove(bullet)
-                continue
-            
-            # Check room boundary - bullets can't leave the room
-            if bullet.check_room_boundary(self.current_room, cell_size):
-                bullet.alive = False
-                self.bullets.remove(bullet)
-                continue
-            
-            # Check obstacle collision
-            if bullet.check_obstacle_collision(self.obstacles, cell_size):
-                bullet.alive = False
-                self.bullets.remove(bullet)
-                continue
-            
-            if bullet.is_enemy:
-                # Enemy bullet - check player collision
-                player_pixel_x = self.player.real_x * cell_size + cell_size // 2
-                player_pixel_y = self.player.real_y * cell_size + cell_size // 2
+            for monster in self.monsters:
+                if not monster.alive:
+                    continue
                 
-                if bullet.check_entity_collision(player_pixel_x, player_pixel_y, entity_radius=cell_size // 3):
-                    self.player.take_damage(bullet.damage)
-                    bullet.alive = False
-                    self.bullets.remove(bullet)
-            else:
-                # Player bullet - check monster collisions
-                for monster in self.monsters:
+                monster_pos = (monster.x, monster.y)
+                
+                # Check if monster is in swing area and not already hit
+                if (monster_pos in swing_positions and 
+                    monster not in self.player.current_swing.hit_entities):
+                    
+                    # Hit the monster
+                    monster.take_damage(self.player.current_swing.damage)
+                    self.player.current_swing.hit_entities.add(monster)
+                    
+                    # Award points
                     if not monster.alive:
-                        continue
-                    
-                    monster_pixel_x = monster.real_x * cell_size + cell_size // 2
-                    monster_pixel_y = monster.real_y * cell_size + cell_size // 2
-                    
-                    if bullet.check_entity_collision(monster_pixel_x, monster_pixel_y, entity_radius=cell_size // 3):
-                        monster.hp -= bullet.damage
-                        if monster.hp <= 0:
-                            monster.alive = False
-                            self.player.score += 10
-                        bullet.alive = False
-                        if bullet in self.bullets:
-                            self.bullets.remove(bullet)
-                        break
+                        self.player.score += 25
     
     # ---- RENDERING METHODS ----
     
@@ -1986,222 +1949,65 @@ class EnhancedMazeGame:
                 # Get time for animations
                 tick = pygame.time.get_ticks()
                 
-                # Render based on enemy type
-                if monster.enemy_type == EnemyType.FLY:
-                    # FLY - small green buzzing enemy
-                    body_size = 12
-                    # Pulsing body effect
-                    pulse = int(2 + abs(tick % 600 - 300) / 150)
-                    pygame.draw.ellipse(self.screen, (0, 100, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size + pulse, body_size + pulse))
-                    pygame.draw.ellipse(self.screen, (0, 200, 0), 
-                                      pygame.Rect(center_x - (body_size-2)//2, center_y - (body_size-2)//2, 
-                                                body_size - 2, body_size - 2))
-                    # Fast flapping wings
-                    wing_offset = 2 if (tick // 80) % 2 else -2
-                    wing_points_left = [
-                        (center_x - 8, center_y + wing_offset),
-                        (center_x - 14, center_y - 3 + wing_offset),
-                        (center_x - 10, center_y + 4 + wing_offset)
-                    ]
-                    wing_points_right = [
-                        (center_x + 8, center_y + wing_offset),
-                        (center_x + 14, center_y - 3 + wing_offset),
-                        (center_x + 10, center_y + 4 + wing_offset)
-                    ]
-                    pygame.draw.polygon(self.screen, (200, 255, 200), wing_points_left)
-                    pygame.draw.polygon(self.screen, (200, 255, 200), wing_points_right)
-                    # Compound eyes
-                    pygame.draw.circle(self.screen, COLORS['RED'], (center_x - 2, center_y - 1), 3)
-                    pygame.draw.circle(self.screen, COLORS['RED'], (center_x + 2, center_y - 1), 3)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x - 2, center_y - 1), 1)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x + 2, center_y - 1), 1)
+                # Draw skeleton enemy with animated attacks
+                body_size = monster.size
                 
-                elif monster.enemy_type == EnemyType.GAPER:
-                    # GAPER - pink blob with gaping mouth
-                    body_size = 18
-                    # Pinkish flesh body
-                    pygame.draw.ellipse(self.screen, (255, 150, 180), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size))
-                    pygame.draw.ellipse(self.screen, (200, 100, 140), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size), 2)
-                    
-                    # Gaping mouth (opening and closing)
-                    mouth_open = (tick // 800) % 2
-                    mouth_height = 10 if mouth_open else 4
-                    mouth_rect = pygame.Rect(center_x - 7, center_y + 2, 14, mouth_height)
-                    pygame.draw.ellipse(self.screen, COLORS['BLACK'], mouth_rect)
-                    pygame.draw.ellipse(self.screen, (150, 0, 0), mouth_rect, 2)
-                    
-                    # Teeth when mouth is open
-                    if mouth_open:
-                        teeth_positions = [
-                            (center_x - 5, center_y + 3), (center_x - 1, center_y + 3),
-                            (center_x + 3, center_y + 3)
-                        ]
-                        for tooth_x, tooth_y in teeth_positions:
-                            pygame.draw.line(self.screen, COLORS['WHITE'], 
-                                           (tooth_x, tooth_y), (tooth_x, tooth_y + 4), 2)
-                    
-                    # Simple dot eyes
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x - 4, center_y - 3), 2)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x + 4, center_y - 3), 2)
+                # Base color depends on attack state
+                base_color = (240, 240, 220)  # Bone white
+                if monster.attack_state == "windup":
+                    # Flash red during windup (warning for parry)
+                    flash_intensity = int(abs(tick % 400 - 200) / 200 * 255)
+                    base_color = (255, flash_intensity, flash_intensity)
+                elif monster.attack_state == "attacking":
+                    base_color = (255, 100, 100)  # Red during attack
+                elif monster.flash_timer > 0:
+                    base_color = (255, 150, 150)  # Damage flash
                 
-                elif monster.enemy_type == EnemyType.SHOOTER:
-                    # SHOOTER - blue with gun turret
-                    body_size = 16
-                    # Blue mechanical body
-                    pygame.draw.ellipse(self.screen, (50, 100, 200), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size))
-                    pygame.draw.ellipse(self.screen, (30, 70, 150), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size), 2)
-                    
-                    # Gun turret pointing toward player
-                    gun_length = 10
-                    # Calculate angle to player
-                    if hasattr(self, 'player'):
-                        dx = self.player.real_x - monster.real_x
-                        dy = self.player.real_y - monster.real_y
-                        angle = math.atan2(dy, dx)
-                        gun_end_x = center_x + int(gun_length * math.cos(angle))
-                        gun_end_y = center_y + int(gun_length * math.sin(angle))
-                    else:
-                        gun_end_x = center_x + gun_length
-                        gun_end_y = center_y
-                    
-                    pygame.draw.line(self.screen, (100, 150, 255), 
-                                   (center_x, center_y), (gun_end_x, gun_end_y), 4)
-                    pygame.draw.circle(self.screen, (150, 200, 255), (gun_end_x, gun_end_y), 3)
-                    
-                    # Targeting reticle
-                    pygame.draw.circle(self.screen, COLORS['ORANGE'], (center_x, center_y - body_size - 6), 4, 1)
-                    pygame.draw.line(self.screen, COLORS['ORANGE'], 
-                                   (center_x - 6, center_y - body_size - 6), 
-                                   (center_x + 6, center_y - body_size - 6), 1)
-                    pygame.draw.line(self.screen, COLORS['ORANGE'], 
-                                   (center_x, center_y - body_size - 12), 
-                                   (center_x, center_y - body_size), 1)
-                    
-                    # Glowing eye
-                    pygame.draw.circle(self.screen, COLORS['RED'], (center_x, center_y - 2), 4)
-                    pygame.draw.circle(self.screen, COLORS['YELLOW'], (center_x, center_y - 2), 2)
+                # Skeleton body (main skull/torso)
+                pygame.draw.ellipse(self.screen, base_color, 
+                                  pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
+                                            body_size, body_size))
+                pygame.draw.ellipse(self.screen, (150, 150, 130), 
+                                  pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
+                                            body_size, body_size), 2)
                 
-                elif monster.enemy_type == EnemyType.TANK:
-                    # TANK - large red armored enemy
-                    body_size = 26
-                    # Dark red armored body
-                    pygame.draw.ellipse(self.screen, (150, 30, 30), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size))
-                    pygame.draw.ellipse(self.screen, (100, 0, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size), 3)
-                    
-                    # Armor plates
-                    plate_positions = [
-                        (center_x - 8, center_y - 10), (center_x + 8, center_y - 10),
-                        (center_x - 10, center_y), (center_x + 10, center_y),
-                        (center_x, center_y + 8)
-                    ]
-                    for plate_x, plate_y in plate_positions:
-                        pygame.draw.rect(self.screen, (80, 80, 80), 
-                                       pygame.Rect(plate_x - 3, plate_y - 3, 6, 6))
-                        pygame.draw.rect(self.screen, (50, 50, 50), 
-                                       pygame.Rect(plate_x - 3, plate_y - 3, 6, 6), 1)
-                    
-                    # Glowing core
-                    pulse_size = int(2 + abs(tick % 1000 - 500) / 250)
-                    pygame.draw.circle(self.screen, (255, 50, 50), (center_x, center_y - 4), 4 + pulse_size)
-                    pygame.draw.circle(self.screen, (255, 150, 150), (center_x, center_y - 4), 2 + pulse_size)
-                    
-                    # Angry eyes
-                    pygame.draw.circle(self.screen, COLORS['YELLOW'], (center_x - 6, center_y - 8), 3)
-                    pygame.draw.circle(self.screen, COLORS['YELLOW'], (center_x + 6, center_y - 8), 3)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x - 6, center_y - 8), 1)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x + 6, center_y - 8), 1)
+                # Skull details
+                # Eye sockets
+                eye_size = max(2, body_size // 6)
+                pygame.draw.circle(self.screen, COLORS['BLACK'], 
+                                 (center_x - body_size//4, center_y - body_size//6), eye_size)
+                pygame.draw.circle(self.screen, COLORS['BLACK'], 
+                                 (center_x + body_size//4, center_y - body_size//6), eye_size)
                 
-                elif monster.enemy_type == EnemyType.SPEEDY:
-                    # SPEEDY - small yellow with motion blur
-                    body_size = 10
-                    # Yellow speedy body
-                    pygame.draw.ellipse(self.screen, (255, 255, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size))
-                    pygame.draw.ellipse(self.screen, (200, 200, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size), 2)
-                    
-                    # Motion blur trail (based on movement direction)
-                    if hasattr(monster, 'last_dx') and hasattr(monster, 'last_dy'):
-                        for i in range(3):
-                            offset_x = int(-monster.last_dx * (i + 1) * 8)
-                            offset_y = int(-monster.last_dy * (i + 1) * 8)
-                            alpha_value = 200 - (i * 60)
-                            blur_color = (255, 255, 0, alpha_value)
-                            pygame.draw.circle(self.screen, (255, 255, 100), 
-                                             (center_x + offset_x, center_y + offset_y), 
-                                             body_size // 2 - i, 0)
-                    
-                    # Speed lines around body
-                    line_angle = tick / 50.0
-                    for i in range(4):
-                        angle = line_angle + (i * math.pi / 2)
-                        line_x = center_x + int(12 * math.cos(angle))
-                        line_y = center_y + int(12 * math.sin(angle))
-                        pygame.draw.line(self.screen, (255, 255, 150), 
-                                       (center_x, center_y), (line_x, line_y), 1)
-                    
-                    # Wide excited eyes
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x - 2, center_y - 1), 2)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x + 2, center_y - 1), 2)
+                # Glowing red eyes
+                if monster.attack_state in ["windup", "attacking"]:
+                    pygame.draw.circle(self.screen, COLORS['RED'], 
+                                     (center_x - body_size//4, center_y - body_size//6), eye_size//2)
+                    pygame.draw.circle(self.screen, COLORS['RED'], 
+                                     (center_x + body_size//4, center_y - body_size//6), eye_size//2)
                 
-                elif monster.enemy_type == EnemyType.CHARGER:
-                    # CHARGER - orange with horns
-                    body_size = 20
-                    # Orange aggressive body
-                    pygame.draw.ellipse(self.screen, (255, 140, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size))
-                    pygame.draw.ellipse(self.screen, (200, 100, 0), 
-                                      pygame.Rect(center_x - body_size//2, center_y - body_size//2, 
-                                                body_size, body_size), 2)
-                    
-                    # Charging indicator (glow when charging)
-                    is_charging = hasattr(monster, 'is_charging') and monster.is_charging
-                    if is_charging:
-                        glow_size = int(4 + abs(tick % 200 - 100) / 25)
-                        pygame.draw.ellipse(self.screen, (255, 200, 100, 128), 
-                                          pygame.Rect(center_x - body_size//2 - glow_size, 
-                                                    center_y - body_size//2 - glow_size, 
-                                                    body_size + glow_size * 2, 
-                                                    body_size + glow_size * 2), 3)
-                    
-                    # Horns pointing forward
-                    horn_points_left = [
-                        (center_x - 10, center_y - 8),
-                        (center_x - 14, center_y - 14),
-                        (center_x - 8, center_y - 10)
-                    ]
-                    horn_points_right = [
-                        (center_x + 10, center_y - 8),
-                        (center_x + 14, center_y - 14),
-                        (center_x + 8, center_y - 10)
-                    ]
-                    pygame.draw.polygon(self.screen, (240, 240, 240), horn_points_left)
-                    pygame.draw.polygon(self.screen, (240, 240, 240), horn_points_right)
-                    pygame.draw.polygon(self.screen, (180, 180, 180), horn_points_left, 2)
-                    pygame.draw.polygon(self.screen, (180, 180, 180), horn_points_right, 2)
-                    
-                    # Fierce eyes
-                    pygame.draw.circle(self.screen, COLORS['RED'], (center_x - 4, center_y - 2), 3)
-                    pygame.draw.circle(self.screen, COLORS['RED'], (center_x + 4, center_y - 2), 3)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x - 4, center_y - 2), 1)
-                    pygame.draw.circle(self.screen, COLORS['BLACK'], (center_x + 4, center_y - 2), 1)
+                # Nasal cavity
+                nasal_points = [
+                    (center_x, center_y),
+                    (center_x - 2, center_y + 4),
+                    (center_x + 2, center_y + 4)
+                ]
+                pygame.draw.polygon(self.screen, COLORS['BLACK'], nasal_points)
+                
+                # Jaw/mouth
+                jaw_width = body_size // 2
+                jaw_y = center_y + body_size//4
+                pygame.draw.arc(self.screen, COLORS['BLACK'], 
+                              pygame.Rect(center_x - jaw_width//2, jaw_y - 2, jaw_width, 6), 
+                              0, 3.14159, 2)
+                
+                # Bone joints/shoulders
+                joint_size = max(2, body_size // 8)
+                pygame.draw.circle(self.screen, (200, 200, 180), 
+                                 (center_x - body_size//2 - 2, center_y), joint_size)
+                pygame.draw.circle(self.screen, (200, 200, 180), 
+                                 (center_x + body_size//2 + 2, center_y), joint_size)
+
                 
                 # Health bar for monsters with >1 HP
                 if monster.max_hp > 1:
@@ -2267,14 +2073,33 @@ class EnhancedMazeGame:
             for point in shine_points:
                 pygame.draw.circle(self.screen, COLORS['WHITE'], point, 2)
         
-        # Draw bullets
-        for bullet in self.bullets:
-            bullet_screen_x = bullet.x - self.camera.x
-            bullet_screen_y = bullet.y - self.camera.y
-            bullet_color = COLORS['LIGHT_RED'] if bullet.is_enemy else COLORS['CYAN']
-            pygame.draw.circle(self.screen, bullet_color, (int(bullet_screen_x), int(bullet_screen_y)), bullet.radius)
-            # Add glow effect
-            pygame.draw.circle(self.screen, COLORS['WHITE'], (int(bullet_screen_x), int(bullet_screen_y)), bullet.radius // 2)
+        # Draw sword swing
+        if self.player.current_swing and self.player.current_swing.active:
+            swing_positions = self.player.current_swing.get_swing_area()
+            for swing_x, swing_y in swing_positions:
+                swing_screen_x = swing_x * self.cell_size - self.camera.x
+                swing_screen_y = swing_y * self.cell_size - self.camera.y
+                
+                # Draw swing arc effect
+                swing_alpha = int(255 * (1.0 - self.player.current_swing.frame / self.player.current_swing.duration))
+                swing_color = (*COLORS['YELLOW'], swing_alpha)
+                swing_rect = pygame.Rect(swing_screen_x, swing_screen_y, self.cell_size, self.cell_size)
+                
+                # Create surface for alpha blending
+                swing_surface = pygame.Surface((self.cell_size, self.cell_size), pygame.SRCALPHA)
+                pygame.draw.rect(swing_surface, swing_color, (0, 0, self.cell_size, self.cell_size), 3)
+                self.screen.blit(swing_surface, (swing_screen_x, swing_screen_y))
+        
+        # Draw parry indicator
+        if self.player.is_parrying():
+            parry_radius = 30
+            parry_alpha = int(255 * (self.player.parry_timer / self.player.parry_duration))
+            parry_color = (*COLORS['BLUE'], parry_alpha)
+            
+            # Create surface for alpha blending
+            parry_surface = pygame.Surface((parry_radius * 2, parry_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(parry_surface, parry_color, (parry_radius, parry_radius), parry_radius, 4)
+            self.screen.blit(parry_surface, (center_x - parry_radius, center_y - parry_radius))
         
         # Health indicator around player (optional visual feedback)
         if self.player.hp < self.player.max_hp * 0.3:
