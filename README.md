@@ -1,52 +1,48 @@
-# 🏰 Roguelike Dungeon Explorer 🗝️
+# ⚔️ Monster Weapon 2D - Dungeon Crawler ⚔️
 
-**An Isaac-inspired dungeon crawler with procedural generation and tactical combat**
+## ⚠️ **DISCONTINUED PROJECT** ⚠️
 
-Navigate through randomly generated dungeons, collect powerful items, fight monsters, and find treasure in this engaging roguelike adventure built with Python and Pygame.
+**A tactical melee combat dungeon crawler with skeleton enemies and parry mechanics**
 
-![Version](https://img.shields.io/badge/version-2.0-blue)
-![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
-![Pygame](https://img.shields.io/badge/pygame-2.5%2B-orange)
+Navigate through randomly generated dungeons, master sword combat, time your parries, and defeat skeleton armies in this engaging action-RPG built with Pygame.
 
-## 🆕 Version 2.0 Updates
+## 🔚 Project Status - Final Python Version
 
-### Bug Fixes
-- ✅ **Enemy Room Lock**: Enemies stay in their spawn rooms
-- ✅ **Invincibility Frames**: 1.5 seconds of invincibility after damage  
-- ✅ **Pure Room Combat**: Removed corridor enemies for Isaac-style gameplay
-- ✅ **Import Fix**: Fixed missing enums module import error
+**This Python implementation has reached its conclusion.** While the game is fully functional with all planned features successfully implemented, Python and Pygame have shown their limitations for this type of project. The performance constraints, limited graphics capabilities, and development complexity have reached a point where further expansion would be inefficient.
 
-### New Features
-- - **Pixel Art Editor** with accurate color mapping
-- 🎯 **Click Room Selection**: Choose Boss, Treasure, Shop, Secret, or Super Secret rooms  
-- 💾 **Direct Asset Saving**: Changes save immediately to game files
-- � **Smart Dependencies**: Auto-install missing packages on game start
+**Next Iteration**: This project will be completely rebuilt from scratch using **Unity + C#** to create a far superior version featuring:
+- ✨ **Enhanced pixel art graphics** with professional animations
+- ⚡ **Better performance** and optimization capabilities  
+- 🤖 **More sophisticated AI** and combat systems
+- 🏰 **Improved dungeon generation** algorithms
+- 🎮 **Professional-grade game engine** capabilities
+- 🎯 **Same core concept**: Dungeon crawler with skeletons, player in the middle, tactical combat
 
-### Balance & Speed Changes
-All speeds reduced ~40% for more tactical, strategic gameplay:
-- **Player Movement**: Slowed for better control
-- **Enemy Speeds**: All enemy types balanced and slowed
-- **Bullet Speeds**: Player and enemy projectiles rebalanced
-
-### Code Organization
-- **GameConstants.py**: All game constants in one organized file
-- **Better Documentation**: Clearer code comments and structure
-- **Cleaner Architecture**: Improved imports and modularity
+The Python version serves as a successful **proof-of-concept** and valuable learning experience, demonstrating all the core mechanics that will be refined and greatly expanded in the Unity version.
 
 ---
 
-### 🎮 For Players - Easy Installation
+![Version](https://img.shields.io/badge/version-3.0-red)
+![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
+![Pygame](https://img.shields.io/badge/pygame-2.5%2B-orange)
 
-**Windows Users** (Recommended):
-```bash
-# 1. Install dependencies
-install_dependencies.bat
+## 🆕 Version 3.0 - COMBAT OVERHAUL
 
-# 2. Play the game
-play.bat
-```
+### 🗡️ Complete Combat System Redesign
+- ❌ **Removed All Projectiles**: Eliminated shooting mechanics entirely
+- ❌ **Removed All Enemy Types**: Simplified to skeleton-only enemies
+- ✅ **Sword Combat System**: Melee attacks with directional swings
+- ✅ **Parry Mechanics**: F key to block incoming attacks with perfect timing
+- ✅ **Skeleton Enemies**: Single enemy type with 3 difficulty levels
+- ✅ **Attack Telegraphs**: Enemies flash red before attacking (parry window)
 
-**All Platforms**:
+### ⚡ New Combat Features
+- 🗡️ **Directional Sword Attacks**: Arrow keys swing sword in 4 directions
+- 🛡️ **Parry System**: F key blocks attacks during enemy wind-up phases
+- ⚠️ **Visual Warnings**: Red flashing enemies signal parry opportunities
+- 🎯 **Area-of-Effect**: Sword hits multiple enemies in swing arc
+- ⏱️ **Timing-Based**: Success depends on skillful timing, not speed
+
 ## 🚀 Quick Start
 
 ```bash
@@ -58,106 +54,86 @@ pip install pygame>=2.5.0
 python GameLoader.py
 ```
 
-## 🎮 How to Play
+## ⚔️ How to Play
 
-**Controls**: WASD/Arrow Keys • ESC=quit • R=restart  
-**Goal**: Navigate from green start to red exit room
+**Controls**: 
+- **WASD/IJKL/Numpad** - Move your character
+- **Arrow Keys** - Swing sword (4 directions)
+- **F Key** - Parry (block enemy attacks)
+- **ESC** - Quit • **R** - Restart
 
+**Combat System**:
+- 🗡️ **Sword Attacks**: Use arrow keys to swing your sword
+- 🛡️ **Parry Timing**: Press F when enemies flash red to block their attacks
+- ⚠️ **Enemy Telegraphs**: Skeletons flash red before attacking - this is your parry window!
+- 🎯 **Positioning**: Get close to enemies and time your attacks carefully
+
+**Progression**:
 - Collect items: 💰 treasure, 🧪 potions, ⚔️ weapons, 🛡️ shields
-- Fight monsters by walking into them
+- Defeat skeleton enemies using sword combat and parrying
 - Find 🗝️ keys to unlock treasure rooms
-- Clear rooms to open doors
+- Clear all enemies in a room to open the doors
 
-## 🎨 Professional Pixel Art Editor
+## ⚔️ Combat Training Tips
 
-Customize room icons with the pixel art editor:
-```bash
-pixel_art_editor.bat
-```
-- **Click Room Buttons**: Select Boss, Treasure, Shop, Secret, or Super Secret rooms
-- **0-9, A-F**: Select colors (16-color palette matching game assets)
-- **Professional UI**: Live preview, accurate colors, UTF-8 safe saving
-- **S**: Save to game • **C**: Clear • **ESC**: Exit
+**For New Players**:
+- **Start Slow**: Focus on learning parry timing before attempting complex fights
+- **Watch the Flash**: Red flashing is your cue to press F for parry
+- **Practice Spacing**: Learn optimal distance for sword attacks
+- **Use Walls**: Corner enemies to limit their movement options
+
+**Advanced Techniques**:
+- **Parry Chaining**: Successfully parry multiple enemies in sequence
+- **Hit-and-Run**: Attack and immediately move to avoid counter-attacks
+- **Room Control**: Use doorways to fight enemies one at a time
+
+## 🎯 Scoring System
+
+- **Treasure Collection**: 5-300 points based on item value
+- **Skeleton Defeats**: 25 points per enemy eliminated with sword
+- **Successful Parries**: 50 bonus points per perfect block
+- **Game Completion**: 100 bonus points for reaching the exit
+- **Total Possible**: 2500+ points with perfect parry play
+
+## 🎮 Gameplay Strategies
+
+1. **Master the Parry**: Watch for red flashing enemies and press F to block attacks
+2. **Positioning**: Get close enough to hit enemies but stay mobile
+3. **Timing**: Wait for sword cooldown between swings - don't spam attacks
+4. **Equipment Priority**: Find swords and shields early to increase damage and defense
+5. **Health Management**: Collect potions before engaging multiple enemies
+6. **Room Tactics**: Clear all skeletons to unlock room doors and progress
 
 ## 📁 Project Structure
 
 ```
 Monster-Weapon-2d/
-├── 🎮 GAME FILES
-│   ├── GameLoader.py              # Game launcher with loading animation
-│   ├── MazeGame.py                # Main game engine and rendering
-│   ├── play.bat                   # Quick-start launcher (Windows)
-│   └── install_dependencies.bat   # Dependency installer (Windows)
+├── 🎮 CORE GAME FILES
+│   ├── GameLoader.py              # Game launcher with loading screen
+│   ├── MazeGame.py                # Main game engine (2500+ lines)
+│   ├── GameEntities.py            # Player, Monster, SwordSwing classes
+│   ├── GameConstants.py           # All game configuration settings
+│   └── enums.py                   # Game enumerations
 │
-├── 🏗️ CORE MODULES
-│   ├── GameConstants.py           # Game configuration and constants
-│   ├── GameEntities.py            # Game entities (Player, Monster, Item, Room, Camera)
-│   ├── DungeonGenerator.py       # Procedural dungeon generation
-│   ├── ItemManager.py             # Item placement and collection logic
-│   └── MonsterManager.py          # Monster AI and combat system
+├── 🏗️ SUPPORTING MODULES
+│   ├── DungeonGenerator.py        # Procedural dungeon generation
+│   ├── ItemManager.py             # Item placement and collection
+│   ├── MonsterManager.py          # Monster AI and combat
+│   ├── PixelArtAssets.py          # Graphics rendering system
+│   └── pixel_art_editor.py        # Asset creation tool
 │
-├── � DOCUMENTATION
-│   ├── README.md                  # This file
-│   ├── GAME_SUMMARY.md           # Detailed game design document
+├── 🚀 QUICK START
+│   ├── play.bat                   # Windows launcher
+│   ├── pixel_art_editor.bat       # Asset editor launcher
 │   └── requirements.txt           # Python dependencies
 │
-└── 📂 SYSTEM
-    ├── .git/                      # Version control
-    ├── .gitignore                 # Git ignore rules
-    └── __pycache__/               # Python bytecode cache
+└── 📖 DOCUMENTATION
+    ├── README.md                  # This comprehensive guide
+    ├── CHANGELOG.md               # Version history and changes
+    └── CHANGES.md                 # Technical implementation details
 ```
 
-## �️ For Developers
-
-### � Module Overview
-
-#### **Core Game Files**
-
-- **`GameLoader.py`** - Game launcher with animated loading screen
-  - Threading-based progress animation
-  - Dependency checking and error handling
-  - Clean startup experience
-
-- **`MazeGame.py`** - Main game engine (~2000 lines)
-  - `EnhancedMazeGame` class - Main game controller
-  - Isaac-style dungeon generation
-  - Advanced rendering system (fog of war, minimap, UI)
-  - Game loop and input handling
-  - Camera system with smooth following
-
-#### **Modular Components**
-
-- **`GameConstants.py`** - Centralized configuration
-  - Display settings (window size, FPS, colors)
-  - Gameplay constants (player stats, monster settings)
-  - Loot distribution settings
-  - Font sizes and UI configuration
-
-- **`GameEntities.py`** - Game object classes
-  - `Player` - Character with stats, inventory, movement
-  - `Monster` - Enemies with AI and combat
-  - `Item` - Collectibles with types and values
-  - `Room` - Dungeon chambers with doors and properties
-  - `Camera` - Smooth viewport management
-
-- **`DungeonGenerator.py`** - Procedural generation
-  - `DungeonGenerator` class
-  - Room placement algorithms
-  - Corridor creation and connections
-  - Door and lock management
-  - 7 different room architectures
-
-- **`ItemManager.py`** - Loot system
-  - Strategic item placement by room type
-  - Balanced distribution (treasure/keys/equipment)
-  - Item collection and effect application
-
-- **`MonsterManager.py`** - Enemy system
-  - Monster generation and placement
-  - AI behavior and movement
-  - Combat mechanics with player interaction
-
-### 🎯 Technical Specifications
+## 🔧 Technical Specifications
 
 **Performance**:
 - **Target FPS**: 60 FPS with smooth gameplay
@@ -165,266 +141,56 @@ Monster-Weapon-2d/
 - **Rendering**: Viewport culling (only renders visible areas)
 - **Grid Size**: 45x29 cells optimized for balance
 
-**Architecture**:
-- **Design Pattern**: Object-oriented with modular separation
-- **Code Quality**: Professional documentation and type hints
-- **Maintainability**: Clean separation of concerns
-
 **Compatibility**:
 - **Python Versions**: 3.8+ (Tested on 3.13)
 - **Pygame Versions**: 2.5.0+ (Tested on 2.6.1)
 - **Operating Systems**: Windows 10+, macOS 10.12+, Ubuntu 18.04+
 
-### 🎨 Game Design Details
+## 🎨 Game Design Features
 
-#### **Procedural Generation**
+### 🏰 Procedural Generation
+- **Isaac-Style Grid Layout**: Central starting room with branching paths
+- **Room Types**: Main (progression), Treasure (locked), Shop (keys), Secret (premium loot)
+- **Balanced Loot Distribution**: Risk/reward system across different room types
+- **Smart Door Management**: Rooms lock when containing enemies, unlock when cleared
 
-**Isaac-Style Grid Layout**:
-1. **Room Placement**: Central starting room with branching paths
-2. **Room Types**: Main (progression), Treasure (locked), Key (contains keys), Boss (end)
-3. **Architecture**: 7 room shapes (rectangular, circular, cross, L-shape, diamond, octagon, donut)
-4. **Connections**: Cardinal direction corridors with smart door placement
+### ⚔️ Combat Mechanics
+- **Melee Combat**: Directional sword attacks with area-of-effect damage
+- **Parry System**: Time-based defensive blocking during enemy wind-up phases
+- **Skeleton Enemies**: 3 difficulty levels with different HP, damage, and speed
+- **Visual Telegraphs**: Red flashing indicates parry opportunities
 
-**Balanced Loot Distribution**:
-- **Treasure Rooms**: 1/6 density, premium loot (100-300 gold, +3-6 equipment)
-- **Key Rooms**: 1/5 density, quality items (30-80 gold, +1-3 equipment) 
-- **Main Rooms**: 1/8 density, standard loot (20-60 gold, +1-2 equipment)
-- **Corridors**: 1/20 density, basic items (5-20 gold, potions)
+### 🎯 Exploration System
+- **Fog of War**: Room-based revelation system
+- **Progressive Unlocking**: Key-based treasure room access
+- **Score-Based Progression**: Points for combat, collection, and completion
 
-**Monster Scaling**:
-- **Treasure Guardians**: 4-6 HP (Monstros - boss-like enemies)
-- **Main Room Enemies**: 2-4 HP (Gapers - medium creatures)
-- **Corridor Scouts**: 1-2 HP (Flies - weak, buzzing enemies)
+## 📝 Future Enhancement Ideas (For Unity Version)
 
-#### **Combat System**
+- 🏰 **Multiple Floors**: Staircase system with increasing difficulty
+- 💎 **More Item Types**: Artifacts, scrolls, special abilities
+- 🤖 **Advanced AI**: Pathfinding monsters, behavior patterns
+- 💾 **Save System**: Game state persistence and checkpoints
+- 🎵 **Audio Integration**: Sound effects and atmospheric music
+- 👥 **Multiplayer**: Cooperative or competitive exploration
+- 🏆 **Achievement System**: Unlockable rewards and challenges
+- ⚙️ **Difficulty Modes**: Easy, Normal, Hard with different scaling
 
-**Player Stats**:
-- Base HP: 100 (increases with level)
-- Base Attack: 10 (enhanced by swords)
-- Base Defense: 5 (enhanced by shields)
+## 👨‍💻 Credits
 
-**Combat Mechanics**:
-- Player attacks first with damage variance (±2)
-- Monster counter-attacks if alive (3-8 damage)
-- Defense reduces damage (minimum 1)
-- Visual feedback (damage/heal flash effects)
+**Developer**: Kucsák Ákos Dániel  
+**Institution**: SZF Computer Science Program  
+**Version**: 3.0 - Final Python Implementation  
 
-#### **Exploration Mechanics**
-
-**Fog of War**:
-- **Room Revelation**: Entire room revealed upon entry
-- **Corridor Vision**: 5x5 area around player in corridors
-- **Persistent Memory**: Explored areas stay visible
-
-**Door System**:
-- **Locked Doors** (`D`): Require keys to open
-- **Room Doors** (`R`): Close when enemies present, open when cleared
-- **Open Doors** (`O`): Cleared rooms with no enemies
-
-### 🔧 Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/Plyxen/Monster-Weapon-2d.git
-cd Monster-Weapon-2d
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the game
-python GameLoader.py
-
-# Or run directly (skip loading screen)
-python MazeGame.py
-```
-
-### 🎯 Code Usage Examples
-
-```python
-# Import game components
-from GameEntities import Player, Monster, Item, Room
-from GameConstants import *
-from ItemManager import ItemManager
-from MonsterManager import MonsterManager
-
-# Create custom game instance
-from MazeGame import EnhancedMazeGame
-game = EnhancedMazeGame()
-game.generate_new_maze()  # Generate fresh dungeon
-
-# Access game state
-print(f"Player HP: {game.player.hp}/{game.player.max_hp}")
-print(f"Rooms: {len(game.rooms)} main, {len(game.treasure_rooms)} treasure")
-print(f"Items: {len([i for i in game.items if not i.collected])}")
-print(f"Monsters: {len([m for m in game.monsters if m.alive])}")
-
-# Customize game settings
-from GameConstants import DEFAULT_PLAYER_HP, DEFAULT_MAZE_WIDTH, DEFAULT_MAZE_HEIGHT
-print(f"Difficulty: {DEFAULT_PLAYER_HP}HP on {DEFAULT_MAZE_WIDTH}x{DEFAULT_MAZE_HEIGHT} map")
-```
-
-## 🎮 Gameplay Tips & Strategy
-
-### 🏆 Winning Strategies
-
-1. **Prioritize Survival**: Collect health potions before engaging strong monsters
-2. **Equipment First**: Find swords and shields early for combat effectiveness  
-3. **Key Management**: Locate key rooms before attempting treasure areas
-4. **Risk Assessment**: Treasure rooms = best rewards + dangerous guardians
-5. **Room Clearing**: Defeat all enemies to unlock room exits
-6. **Exploration Balance**: Visit all main rooms + optional areas for max score
-
-### 🎯 Scoring System
-
-- **Treasure Collection**: 5-300 points based on item value
-- **Monster Defeats**: 25 points per enemy eliminated
-- **Game Completion**: 100 bonus points for reaching the exit
-- **Total Possible**: 2000+ points in optimized playthrough
-
-## 📝 Future Enhancement Ideas
-
-- [ ] **Multiple Floors**: Staircase system with increasing difficulty
-- [ ] **More Item Types**: Artifacts, scrolls, special abilities
-- [ ] **Advanced AI**: Pathfinding monsters, behavior patterns
-- [ ] **Save System**: Game state persistence and checkpoints
-- [ ] **Audio Integration**: Sound effects and atmospheric music
-- [ ] **Multiplayer**: Cooperative or competitive exploration
-- [ ] **Achievement System**: Unlockable rewards and challenges
-- [ ] **Difficulty Modes**: Easy, Normal, Hard with different scaling
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Follow the existing code style with comprehensive documentation
-4. Test thoroughly across different scenarios
-5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-6. Push to the branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
-├── 📋 requirements.txt          # Python dependencies specification
-├── 📖 README.md                 # Comprehensive project documentation
-└── 📂 __pycache__/              # Python bytecode cache directory
-    └── main.cpython-313.pyc     # Compiled maze generator module
-```
-
-### 🗂️ **Core Files**
-
-#### `MazeGame.py` - Main Game (2500+ lines)
-Complete Isaac-like roguelike implementation:
-- **EnhancedMazeGame**: Main game controller and rendering engine
-- **Advanced Graphics**: Detailed sprites and animations with smooth movement
-- **Camera System**: Smooth viewport management with room transitions
-- **Fog of War**: Dynamic exploration and visibility system
-
-#### `requirements.txt` - Dependencies
-Professional dependency management with:
-- **Core Requirements**: Pygame 2.5.0+ with version locking
-- **Future Extensions**: Commented optional libraries
-- **Installation Guide**: Clear setup instructions
-
-## 🚀 Advanced Usage
-
-### 🎮 **Playing the Game**
-```bash
-# Standard gameplay (with loading screen)
-python GameLoader.py
-
-# Direct launch (skip loading screen)
-python MazeGame.py
-```
-
-### 🎨 **Code Integration**
-```python
-# Use the game engine in your project
-from MazeGame import EnhancedMazeGame
-from GameEntities import Player, Room
-
-# Create custom game instance
-game = EnhancedMazeGame()
-game.generate_new_maze()  # Generate fresh dungeon
-game.run()                # Start game loop
-
-# Access game components
-player_stats = game.player.__dict__
-room_count = len(game.rooms)
-item_locations = [(item.x, item.y) for item in game.items]
-```
-
-## 🎯 **Performance & Optimization**
-
-### ⚡ **Technical Specifications**
-- **Target FPS**: 60 FPS with smooth gameplay
-- **Memory Usage**: ~50MB RAM during gameplay  
-- **Rendering**: Viewport culling renders only visible areas
-- **Grid Size**: 45x29 cells optimized for gameplay balance
-- **Cell Size**: 40 pixels for detailed Isaac-like graphics
-
-### 🔧 **System Compatibility**
-- **Python Versions**: 3.8+ (Tested on 3.13.5)
-- **Pygame Versions**: 2.5.0+ (Tested on 2.6.1)
-- **Operating Systems**: Windows 10+, macOS 10.12+, Ubuntu 18.04+
-- **Display**: Minimum 1400x900, recommended 1920x1080+
-
-## 🎮 **Gameplay Tips & Strategy**
-
-### 🏆 **Winning Strategies**
-1. **Prioritize Survival**: Collect health potions before engaging strong monsters
-2. **Equipment First**: Seek swords and shields early to improve combat effectiveness  
-3. **Key Management**: Find key rooms before attempting treasure areas
-4. **Risk Assessment**: Treasure rooms offer great rewards but contain dangerous guardians
-5. **Exploration Balance**: Visit all main rooms (required) plus optional areas for maximum score
-
-### 🎯 **Scoring System**
-- **Treasure Collection**: 5-300 points based on item value
-- **Monster Defeats**: 25 points per enemy eliminated
-- **Game Completion**: 100 bonus points for reaching the exit
-- **Total Possible**: 2000+ points in optimized playthrough
-
-## 🔧 **Development & Contribution**
-
-### 🛠️ **Code Architecture**
-The codebase follows professional standards with:
-- **Comprehensive Documentation**: Every class and method documented
-- **Type Hints**: Full typing support for better IDE integration
-- **Modular Design**: Separate concerns for rendering, logic, and data
-- **Performance Focus**: Optimized rendering and memory management
-
-### 📝 **Future Enhancement Ideas**
-- **Multiple Floors**: Staircase system with increasing difficulty
-- **More Item Types**: Artifacts, scrolls, special abilities
-- **Advanced AI**: Pathfinding monsters, different behavior patterns
-- **Save System**: Game state persistence and checkpoint loading
-- **Audio Integration**: Sound effects and atmospheric music
-- **Multiplayer**: Cooperative or competitive dungeon exploration
-
-### 🤝 **Contributing**
-1. **Fork the repository** and create a feature branch
-2. **Follow the existing code style** with comprehensive documentation
-3. **Test thoroughly** across different systems and scenarios  
-4. **Submit pull requests** with clear descriptions of changes
-
-## 📜 **License & Credits**
-
-### 👨‍💻 **Author**
-**Kucsák Ákos Dániel** - Enhanced Roguelike Implementation  
-*Computer Science Student - SZF Program*
-
-### 🎮 **Inspiration**
-- **The Binding of Isaac**: Room-based dungeon architecture and visual style
-- **Classic Roguelikes**: Turn-based combat and procedural generation principles
-- **Modern Indie Games**: Polished graphics and smooth gameplay mechanics
-
-### 📋 **Technical Credits**
-- **Pygame Community**: Excellent game development framework
-- **Python Software Foundation**: Robust programming language
-- **Roguelike Development Community**: Design patterns and best practices
+**Inspiration**:
+- **The Binding of Isaac**: Room-based dungeon architecture
+- **Dark Souls**: Timing-based combat with parry mechanics
+- **Hollow Knight**: Precise melee combat and enemy telegraphs
 
 ---
 
-## 🚀 **Ready to Explore?**
+## 🎮 Ready to Play?
 
-*Download, install, and embark on your dungeon adventure!*
+**Start your final Python adventure**: `python GameLoader.py` ⚔️🛡️💀
 
-**Start your journey**: `python maze.py` �⚔️💎
+*This marks the end of the Python journey and the beginning of the Unity evolution!*
