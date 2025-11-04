@@ -33,9 +33,4 @@ class ItemType(Enum):
 
 class MonsterType(Enum):
     """Types of enemy monsters."""
-    FLY = auto()
-    GAPER = auto()
-    SHOOTER = auto()
-    TANK = auto()
-    SPEEDY = auto()
-    CHARGER = auto()
+    SKELETON = auto()
